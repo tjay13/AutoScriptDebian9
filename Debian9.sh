@@ -83,7 +83,7 @@ service nginx restart
 
 # install openvpn
 apt-get -y install openvpn && apt-get -y install unzip
-wget -O /etc/openvpn/openvpn.zip "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/OpenVPN/openvpn-debian.zip"
+wget -O /etc/openvpn/openvpn.zip "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/OpenVPN/openvpn-debian.zip"
 cd /etc/openvpn/
 unzip openvpn.zip
 chmod -R 755 /etc/openvpn
