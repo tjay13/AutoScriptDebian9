@@ -82,7 +82,7 @@ service php7.0-fpm restart
 service nginx restart
 
 # install openvpn
-apt-get -y install openvpn
+apt-get -y install openvpn && apt-get -y install unzip
 wget -O /etc/openvpn/openvpn.zip "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/OpenVPN/openvpn-debian.zip"
 cd /etc/openvpn/
 unzip openvpn.zip
