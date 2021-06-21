@@ -7,7 +7,7 @@ Premium autoscript installer used to install SSH, STUNNEL, OVPN, and SQUID PROXY
 
 - Debian 9 x64 & x32
 
-apt-get -y install wget && wget https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Debian9 && chmod +x Debian9 && ./Debian9 && rm -f Debian9 && history -c
+sudo apt-get -y install wget && sudo wget https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Debian9.sh && sudo chmod +x Debian9.sh && sudo ./Debian9 && rm -f Debian9.sh && history -c
 
 
 ### Important Information:
