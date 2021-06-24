@@ -63,7 +63,7 @@ apt-get -y install libio-pty-perl libauthen-pam-perl apt-show-versions libnet-ss
 
 # install screenfetch
 cd
-wget -O /usr/bin/screenfetch "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Screenfetch/screenfetch"
+wget -O /usr/bin/screenfetch "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Screenfetch/screenfetch"
 chmod +x /usr/bin/screenfetch
 echo "clear" >> .profile
 echo "screenfetch" >> .profile
@@ -162,26 +162,9 @@ ufw disable
 echo 1 > /proc/sys/net/ipv4/ip_forward
 sed -i 's|#net.ipv4.ip_forward=1|net.ipv4.ip_forward=1|' /etc/sysctl.conf
 
-# OpenVPN monitoring
-apt-get install -y gcc libgeoip-dev python-virtualenv python-dev geoip-database-extra uwsgi uwsgi-plugin-python
-wget -O /srv/openvpn-monitor.tar "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Panel/openvpn-monitor.tar"
-cd /srv
-tar xf openvpn-monitor.tar
-cd openvpn-monitor
-virtualenv .
-. bin/activate
-pip install -r requirements.txt
-wget -O /etc/uwsgi/apps-available/openvpn-monitor.ini "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Panel/openvpn-monitor.ini"
-ln -s /etc/uwsgi/apps-available/openvpn-monitor.ini /etc/uwsgi/apps-enabled/
-
-# GeoIP For OpenVPN Monitor
-mkdir -p /var/lib/GeoIP
-wget -O /var/lib/GeoIP/GeoLite2-City.mmdb.gz "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Panel/GeoLite2-City.mmdb.gz"
-gzip -d /var/lib/GeoIP/GeoLite2-City.mmdb.gz
-
 # install badvpn
 cd
-wget -O /usr/bin/badvpn-udpgw "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/BadVPN/badvpn-udpgw64"
+wget -O /usr/bin/badvpn-udpgw "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/BadVPN/badvpn-udpgw64"
 sed -i '$ i\screen -AmdS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 1000 --max-connections-for-client 10' /etc/rc.local
 chmod +x /usr/bin/badvpn-udpgw
 screen -AmdS badvpn badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 1000 --max-connections-for-client 10
@@ -250,7 +233,7 @@ systemctl enable v2-ui
 systemctl status --no-pager v2-ui
 
 # installing webmin
-wget "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Other/webmin_1.801_all.deb"
+wget "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/webmin_1.801_all.deb"
 dpkg --install webmin_1.801_all.deb;
 apt-get -y -f install;
 sed -i 's/ssl=1/ssl=0/g' /etc/webmin/miniserv.conf
@@ -268,7 +251,7 @@ END
 
 # configure stunnel
 sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4
-wget -O /etc/stunnel/stunnel.pem "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Other/stunnel.pem"
+wget -O /etc/stunnel/stunnel.pem "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/stunnel.pem"
 service stunnel4 restart
 cd
 
@@ -278,14 +261,14 @@ apt-get -y install fail2ban
 # install ddos deflate
 cd
 apt-get -y install dnsutils dsniff
-wget https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/DDOS/ddos-deflate-master.zip
+wget https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/DDOS/ddos-deflate-master.zip
 unzip ddos-deflate-master.zip
 cd ddos-deflate-master
 ./install.sh
 rm -rf /root/ddos-deflate-master.zip
 
 # banner /etc/banner
-wget -O /etc/banner "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Other/banner"
+wget -O /etc/banner "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/banner"
 sed -i 's@#Banner none@Banner /etc/banner@g' /etc/ssh/sshd_config
 sed -i 's@DROPBEAR_BANNER=""@DROPBEAR_BANNER="/etc/banner"@g' /etc/default/dropbear
 
