@@ -1,9 +1,8 @@
 #!/bin/bash
-# Created by https://www.facebook.com/joash.singh.90
-# Script by Dope~kid
+# Script by TsholoVPN
 
 # requirement
-apt-get -y update && apt-get -y upgrade
+apt-get -y update
 apt-get -y install curl wget
 
 # initializing IP
@@ -31,35 +30,19 @@ echo "nameserver 8.8.4.4" >> /etc/resolv.conf
 sed -i '$ i\echo "nameserver 8.8.8.8" > /etc/resolv.conf' /etc/rc.local
 sed -i '$ i\echo "nameserver 8.8.4.4" >> /etc/resolv.conf' /etc/rc.local
 
-# remove unused
-apt-get -y --purge remove samba*;
-apt-get -y --purge remove apache2*;
-apt-get -y --purge remove sendmail*;
-apt-get -y --purge remove bind9*;
-
-# set repo
-echo 'deb http://download.webmin.com/download/repository sarge contrib' >> /etc/apt/sources.list.d/webmin.list
-wget "http://www.dotdeb.org/dotdeb.gpg"
-cat dotdeb.gpg | apt-key add -;rm dotdeb.gpg
-wget -qO - http://www.webmin.com/jcameron-key.asc | apt-key add -
-
 # set time GMT +2
 ln -fs /usr/share/zoneinfo/Africa/Johannesburg /etc/localtime
+
+# disable se linux
+echo 0 > /selinux/enforce
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/g'  /etc/sysconfig/selinux
+
 
 # set locale
 sed -i 's/AcceptEnv/#AcceptEnv/g' /etc/ssh/sshd_config
 
 # update
-apt-get update; apt-get -y upgrade;
-
-# install webserver extensions
-apt-get -y install nginx
-apt-get -y install php7.0-fpm php7.0-cli libssh2-1 php-ssh2 php7.0
-
-# install essential package
-apt-get -y install nano iptables-persistent dnsutils screen whois ngrep unzip unrar tar unzip zip
-apt-get -y install build-essential
-apt-get -y install libio-pty-perl libauthen-pam-perl apt-show-versions libnet-ssleay-perl
+apt-get update;
 
 # install screenfetch
 cd
@@ -69,17 +52,11 @@ echo "clear" >> .profile
 echo "screenfetch" >> .profile
 
 # install webserver
-cd
-rm /etc/nginx/sites-enabled/default
-rm /etc/nginx/sites-available/default
-wget -O /etc/nginx/nginx.conf "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Other/nginx.conf"
-wget -O /etc/nginx/conf.d/vps.conf "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Other/vps.conf"
-wget -O /etc/nginx/conf.d/monitoring.conf "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Other/monitoring.conf"
-mkdir -p /home/vps/public_html
-wget -O /home/vps/public_html/index.php "https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Panel/index.php"
-sed -i 's/listen = \/run\/php\/php7.0-fpm.sock/listen = 127.0.0.1:9000/g' /etc/php/7.0/fpm/pool.d/www.conf
-service php7.0-fpm restart
-service nginx restart
+apt-get install apache2 -y
+mkdir -p /var/www/html/status
+chmod -R 755 /var/www/html
+sed -i 's/Listen 80/Listen 81/g' /etc/httpd/conf/httpd.conf
+service apache2 restart
 
 # install openvpn
 apt-get -y install openvpn && apt-get -y install unzip
@@ -88,42 +65,6 @@ cd /etc/openvpn/
 unzip openvpn.zip
 chmod -R 755 /etc/openvpn
 sed -i $MYIP2 /etc/openvpn/server.conf
-
-# openvpn config
-cat > /home/vps/public_html/Dopekid.ovpn <<-END
-# OpenVPN Configuration By Dopekid
-
-client
-dev tun
-proto tcp
-remote $MYIP 1194
-http-proxy $MYIP 8080
-remote-cert-tls server
-resolv-retry infinite
-nobind
-tun-mtu 1500
-mssfix 1500
-persist-key
-persist-tun
-ping-restart 0
-ping-timer-rem
-reneg-sec 0
-comp-lzo
-auth SHA512
-auth-user-pass
-auth-nocache
-cipher AES-256-CBC
-verb 3
-pull
-
-END
-echo '<ca>' >> /home/vps/public_html/Dopekid.ovpn
-cat /etc/openvpn/keys/ca.crt >> /home/vps/public_html/Dopekid.ovpn
-echo '</ca>' >> /home/vps/public_html/Dopekid.ovpn
-cd /home/vps/public_html/
-tar -czf /home/vps/public_html/DopekidVPN.tar.gz Dopekid.ovpn
-tar -czf /home/vps/public_html/Dopekid.tar.gz Dopekid.ovpn
-cd
 
 # Deb9 OVPN Bug Workaround
 mkdir -p /dev/net
@@ -138,25 +79,6 @@ systemctl daemon-reload
 systemctl start openvpn@server
 systemctl enable openvpn@server
 systemctl status --no-pager openvpn@server
-
-# Setting UFW
-apt-get install ufw
-ufw allow ssh
-ufw allow 443/tcp
-sed -i 's|DEFAULT_INPUT_POLICY="DROP"|DEFAULT_INPUT_POLICY="ACCEPT"|' /etc/default/ufw
-sed -i 's|DEFAULT_FORWARD_POLICY="DROP"|DEFAULT_FORWARD_POLICY="ACCEPT"|' /etc/default/ufw
-cat > /etc/ufw/before.rules <<-END
-# START OPENVPN RULES
-# NAT table rules
-*nat
-:POSTROUTING ACCEPT [0:0]
-# Allow traffic from OpenVPN client to eth0
--A POSTROUTING -s 10.8.0.0/8 -o eth0 -j MASQUERADE
-COMMIT
-# END OPENVPN RULES
-END
-ufw status
-ufw disable
 
 # set ipv4 forward
 echo 1 > /proc/sys/net/ipv4/ip_forward
@@ -211,49 +133,10 @@ refresh_pattern ^ftp: 1440 20% 10080
 refresh_pattern ^gopher: 1440 0% 1440
 refresh_pattern -i (/cgi-bin/|\?) 0 0% 0
 refresh_pattern . 0 20% 4320
-visible_hostname dopekid.tk
+visible_hostname tsholovpn.tk
 END
 sed -i $MYIP2 /etc/squid/squid.conf;
 service squid restart
-
-# V2-ui Panel Setup
-wget -O /usr/local/v2-ui-linux.tar.gz "https://www.dropbox.com/s/6yoi0gn1vcx6na9/v2-ui-linux.tar.gz"
-cd /usr/local/
-tar zxvf v2-ui-linux.tar.gz
-rm v2-ui-linux.tar.gz -f
-cd v2-ui
-chmod +x v2-ui bin/v2ray-v2-ui bin/v2ctl
-cp -f v2-ui.service /etc/systemd/system/
-cd
-
-# Start V2-ui 
-systemctl daemon-reload
-systemctl start v2-ui
-systemctl enable v2-ui
-systemctl status --no-pager v2-ui
-
-# installing webmin
-wget "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/webmin_1.801_all.deb"
-dpkg --install webmin_1.801_all.deb;
-apt-get -y -f install;
-sed -i 's/ssl=1/ssl=0/g' /etc/webmin/miniserv.conf
-rm /root/webmin_1.801_all.deb
-service webmin restart
-
-# install stunnel
-apt-get install stunnel4 -y
-cat > /etc/stunnel/stunnel.conf <<-END
-cert = /etc/stunnel/stunnel.pem
-[dropbear]
-accept = 444
-connect = 127.0.0.1:442
-END
-
-# configure stunnel
-sed -i 's/ENABLED=0/ENABLED=1/g' /etc/default/stunnel4
-wget -O /etc/stunnel/stunnel.pem "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/stunnel.pem"
-service stunnel4 restart
-cd
 
 # install fail2ban
 apt-get -y install fail2ban
@@ -272,85 +155,17 @@ wget -O /etc/banner "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/
 sed -i 's@#Banner none@Banner /etc/banner@g' /etc/ssh/sshd_config
 sed -i 's@DROPBEAR_BANNER=""@DROPBEAR_BANNER="/etc/banner"@g' /etc/default/dropbear
 
-# Webmin Configuration
-sed -i '$ i\dope: acl adsl-client ajaxterm apache at backup-config bacula-backup bandwidth bind8 burner change-user cluster-copy cluster-cron cluster-passwd cluster-shell cluster-software cluster-useradmin cluster-usermin cluster-webmin cpan cron custom dfsadmin dhcpd dovecot exim exports fail2ban fdisk fetchmail file filemin filter firewall firewalld fsdump grub heartbeat htaccess-htpasswd idmapd inetd init inittab ipfilter ipfw ipsec iscsi-client iscsi-server iscsi-target iscsi-tgtd jabber krb5 ldap-client ldap-server ldap-useradmin logrotate lpadmin lvm mailboxes mailcap man mon mount mysql net nis openslp package-updates pam pap passwd phpini postfix postgresql ppp-client pptp-client pptp-server proc procmail proftpd qmailadmin quota raid samba sarg sendmail servers shell shorewall shorewall6 smart-status smf software spam squid sshd status stunnel syslog-ng syslog system-status tcpwrappers telnet time tunnel updown useradmin usermin vgetty webalizer webmin webmincron webminlog wuftpd xinetd' /etc/webmin/webmin.acl
-sed -i '$ i\dope:x:0' /etc/webmin/miniserv.users
-/usr/share/webmin/changepass.pl /etc/webmin dope 12345
-
-# Setting IPtables
-cat > /etc/iptables.up.rules <<-END
-*nat
-:PREROUTING ACCEPT [0:0]
-:OUTPUT ACCEPT [0:0]
-:POSTROUTING ACCEPT [0:0]
--A POSTROUTING -j SNAT --to-source xxxxxxxxx
--A POSTROUTING -o eth0 -j MASQUERADE
--A POSTROUTING -s 192.168.100.0/24 -o eth0 -j MASQUERADE
--A POSTROUTING -s 192.168.10.0/24 -o eth0 -j MASQUERADE
-COMMIT
-*filter
-:INPUT ACCEPT [19406:27313311]
-:FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [9393:434129]
-:fail2ban-ssh - [0:0]
--A FORWARD -i eth0 -o ppp0 -m state --state RELATED,ESTABLISHED -j ACCEPT
--A FORWARD -i ppp0 -o eth0 -j ACCEPT
--A INPUT -p tcp -m multiport --dports 22 -j fail2ban-ssh
--A INPUT -p ICMP --icmp-type 8 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 53 -j ACCEPT
--A INPUT -p tcp --dport 22  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 80  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 80  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 8888  -m state --state NEW -j ACCEPT
--A INPUT -p udp --dport 8888  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 142  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 143  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 109  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 110  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 443  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 1194  -m state --state NEW -j ACCEPT
--A INPUT -p udp --dport 1194  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 1732  -m state --state NEW -j ACCEPT
--A INPUT -p udp --dport 1732  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 3128  -m state --state NEW -j ACCEPT
--A INPUT -p udp --dport 3128  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 7300  -m state --state NEW -j ACCEPT
--A INPUT -p udp --dport 7300  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 8000  -m state --state NEW -j ACCEPT
--A INPUT -p udp --dport 8000  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 8080  -m state --state NEW -j ACCEPT
--A INPUT -p udp --dport 8080  -m state --state NEW -j ACCEPT
--A INPUT -p tcp --dport 10000  -m state --state NEW -j ACCEPT
--A fail2ban-ssh -j RETURN
-COMMIT
-*raw
-:PREROUTING ACCEPT [158575:227800758]
-:OUTPUT ACCEPT [46145:2312668]
-COMMIT
-*mangle
-:PREROUTING ACCEPT [158575:227800758]
-:INPUT ACCEPT [158575:227800758]
-:FORWARD ACCEPT [0:0]
-:OUTPUT ACCEPT [46145:2312668]
-:POSTROUTING ACCEPT [46145:2312668]
-COMMIT
-END
-sed -i '$ i\iptables-restore < /etc/iptables.up.rules' /etc/rc.local
-sed -i $MYIP2 /etc/iptables.up.rules;
-iptables-restore < /etc/iptables.up.rules
-
 # xml parser
 cd
 apt-get install -y libxml-parser-perl
 
 # download script
 cd
-wget https://raw.githubusercontent.com/dopekid30/AutoScriptDebian9/main/Res/Menu/install-premiumscript.sh -O - -o /dev/null|sh
+wget https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Menu/install-premiumscript.sh -O - -o /dev/null|sh
 
 # finishing
 cd
-chown -R www-data:www-data /home/vps/public_html
-/etc/init.d/nginx restart
+/etc/init.d/apache2 restart
 /etc/init.d/openvpn restart
 /etc/init.d/cron restart
 /etc/init.d/ssh restart
@@ -379,8 +194,8 @@ echo " "
 echo "INSTALLATION COMPLETE!"
 echo " "
 echo "------------------------- Configuration Setup Server ------------------------"
-echo "                    Copyright https://t.me/Dopekidfreenet                    "
-echo "                             Created By Dope~kid                             "
+echo "                    Copyright TsholoVPN 2021 All rights Reserved             "
+echo "                             Created By TsholoVPN                            "
 echo "-----------------------------------------------------------------------------"
 echo ""  | tee -a log-install.txt
 echo "Server Information"  | tee -a log-install.txt
@@ -423,6 +238,6 @@ echo "   - V2ray Panel             : http://$MYIP:65432/"  | tee -a log-install.
 echo "   - Webmin                  : http://$MYIP:10000/"  | tee -a log-install.txt
 echo "   - Installation Log        : cat /root/log-install.txt"  | tee -a log-install.txt
 echo ""  | tee -a log-install.txt
-echo "----------------- Script By Dope~kid(fb.com/joash.singh.90) -----------------"
-echo "                              Script By Dope~kid                             "
+echo "----------------------- Script By TsholoVPN) --------------------------------"
+echo "                              Script By TsholoVPN                            "
 echo "-----------------------------------------------------------------------------"
