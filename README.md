@@ -9,3 +9,6 @@ Premium autoscript installer used to install SSH, STUNNEL, OVPN, and SQUID PROXY
 
 apt-get -y install wget && wget https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/debian9panelscript.sh && chmod +x debian9panelscript.sh && ./debian9panelscript.sh && rm -f debian9panelscript.sh && history -c
 
+## Install PANEL 2
+
+wget https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/panelscript2.sh && chmod +x panelscript2.sh && ./panelscript2.sh && history -c
