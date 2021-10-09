@@ -33,12 +33,12 @@ expect eof; ")
 echo "$so2"
 
 # Import Database
-wget -qO- https://www.dropbox.com/s/xu5owk990w1o108/deekay_panel.sql | mysql -uroot $DatabaseName 2> /dev/null
+wget -qO- https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/Deekay_Panel.sql | mysql -uroot $DatabaseName 2> /dev/null
 
 # Clear Web Folder And Download Panel
-rm -f /var/www/html/*
-cd /var/www/html
-wget -qO- https://www.dropbox.com/s/30jme1sv4hsoqek/deekay_panel.tar.gz | tar xz
+#rm -f /var/www/html/*
+#cd /var/www/html
+#wget -qO- https://www.dropbox.com/s/30jme1sv4hsoqek/deekay_panel.tar.gz | tar xz
 
 # Remove Default Cronjobs
 cd /etc/cron.d
