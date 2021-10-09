@@ -16,14 +16,14 @@ MYIP2="s/xxxxxxxxx/$MYIP/g";
 country=ZA
 state=Africa
 locality=Durban
-organization=DeekayVPN
-organizationalunit=DeekayVPN
-commonname=DeekayVPN
-email=deekayvpn@gmail.com
+organization=TsholoVPN
+organizationalunit=TsholoVPN
+commonname=TsholoVPN
+email=tsholofelogarekoe@gmail.com
 
 # Mysql Database Info
-DatabasePass='D03Ekid2021'
-DatabaseName='dopekid_vpn18'
+DatabasePass='1534Pass1234Five'
+DatabaseName='vpnquest1_wago1'
 
 # configure rc.local
 cat <<EOF >/etc/rc.local
@@ -85,11 +85,11 @@ echo "screenfetch" >> .profile
 cd
 rm /etc/nginx/sites-enabled/default
 rm /etc/nginx/sites-available/default
-wget -O /etc/nginx/nginx.conf "https://www.dropbox.com/s/ks0qw6p1bx9ytff/nginx.conf"
-wget -O /etc/nginx/conf.d/vps.conf "https://www.dropbox.com/s/f9ygxijg948yet6/vps.conf"
-wget -O /etc/nginx/conf.d/monitoring.conf "https://www.dropbox.com/s/38xvvcacdzmz2mj/monitoring.conf"
+wget -O /etc/nginx/nginx.conf "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/nginx.conf"
+wget -O /etc/nginx/conf.d/vps.conf "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/vps.conf"
+wget -O /etc/nginx/conf.d/monitoring.conf "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/monitoring.conf"
 mkdir -p /home/vps/public_html
-wget -O /home/vps/public_html/index.php "https://www.dropbox.com/s/hdt2kz74n6803f3/index.php"
+wget -O /home/vps/public_html/index.php "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/index.php"
 sed -i 's/listen = \/run\/php\/php7.0-fpm.sock/listen = 127.0.0.1:9000/g' /etc/php/7.0/fpm/pool.d/www.conf
 service php7.0-fpm restart
 service nginx restart
@@ -351,7 +351,7 @@ sed -i 's/bind-address/#bind-address/g' /etc/mysql/mariadb.conf.d/50-server.cnf
 
 # Setting SSH To Work With Panel
 mkdir /usr/sbin/kpn
-wget -O /usr/sbin/kpn/connection.php "https://www.dropbox.com/s/tn8mp7841mf66ej/connection.php"
+wget -O /usr/sbin/kpn/connection.php "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/connection.php"
 chmod -R 777 /usr/sbin/kpn/connection.php
 
 # Webmin Configuration
