@@ -26,7 +26,7 @@ so2=$(expect -c "
 spawn mysql -u root -p; sleep 3
 expect \"\";  sleep 3; send \"$DatabasePass\r\"
 expect \"\";  sleep 3; send \"CREATE DATABASE IF NOT EXISTS $DatabaseName;\r\"
-expect \"\";  sleep 3; send \"GRANT ALL PRIVILEGES ON *.* TO '$DatabaseName'@'$DatabaseHost' IDENTIFIED BY '$DatabasePass'; \r\"
+expect \"\";  sleep 3; send \"GRANT ALL PRIVILEGES ON *.* TO '$DatabaseName'@'185.61.137.174' IDENTIFIED BY '$DatabasePass'; \r\"
 expect \"\";  sleep 3; send \"FLUSH PRIVILEGES;\r\"
 expect \"\";  sleep 3; send \"EXIT;\r\"
 expect eof; ")
