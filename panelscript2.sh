@@ -9,10 +9,9 @@ sleep 0.5
 cd
 
 # Database Info
-DatabaseHost='185.61.137.174'
-DatabaseName='vpnquest1_wago1'
-DatabaseUser='vpnquest1_wago1'
-DatabasePass='1534Pass1234Five
+DatabaseName='tsholo_vpn1'
+DatabaseUser='tsholo_vpn1'
+DatabasePass='1534Pass1234Five'
 
 # Install Required Packages
 apt-get -y install apache2 php7.0 php7.0-fpm php7.0-mcrypt php7.0-pdo php7.0-sqlite3 php7.0-mbstring php7.0-curl php7.0-cli php7.0-mysql php7.0-gd php7.0-intl php7.0-xsl php7.0-xml php7.0-zip php7.0-xmlrpc libapache2-mod-php7.0
@@ -26,7 +25,7 @@ so2=$(expect -c "
 spawn mysql -u root -p; sleep 3
 expect \"\";  sleep 3; send \"$DatabasePass\r\"
 expect \"\";  sleep 3; send \"CREATE DATABASE IF NOT EXISTS $DatabaseName;\r\"
-expect \"\";  sleep 3; send \"GRANT ALL PRIVILEGES ON *.* TO '$DatabaseName'@'185.61.137.174' IDENTIFIED BY '$DatabasePass'; \r\"
+expect \"\";  sleep 3; send \"GRANT ALL PRIVILEGES ON *.* TO '$DatabaseName'@'localhost' IDENTIFIED BY '$DatabasePass'; \r\"
 expect \"\";  sleep 3; send \"FLUSH PRIVILEGES;\r\"
 expect \"\";  sleep 3; send \"EXIT;\r\"
 expect eof; ")
@@ -72,8 +71,8 @@ ln -sf /etc/apache2/mods-available/headers.load mods-enabled/headers.load
 rm -f sites-enabled/*
 cat << deekay > sites-enabled/panel.conf
 <VirtualHost *:80>
-    ServerName deekay-vpn.cf
-    ServerAlias www.deekay-vpn.cf
+    ServerName tsholovpn.tk
+    ServerAlias www.tsholovpn.tk
     ServerAdmin DEEKAY
     DocumentRoot /var/www/html
     
