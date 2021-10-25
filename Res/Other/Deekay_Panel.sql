@@ -1,6 +1,6 @@
 -- MySQL dump 10.16  Distrib 10.1.48-MariaDB, for debian-linux-gnu (x86_64)
 --
--- Host: localhost    Database: dopekid_vpn18
+-- Host: localhost    Database: tsholo_vpn1
 -- ------------------------------------------------------
 -- Server version	10.1.48-MariaDB-0+deb9u2
 
