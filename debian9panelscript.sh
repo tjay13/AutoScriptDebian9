@@ -23,7 +23,7 @@ email=tsholofelogarekoe@gmail.com
 
 # Mysql Database Info
 DatabasePass='1534Pass1234Five'
-DatabaseName='vpnquest1_wago1'
+DatabaseName='tsholo_vpn1'
 
 # configure rc.local
 cat <<EOF >/etc/rc.local
@@ -291,7 +291,7 @@ socket = r:TCP_NODELAY=1
 TIMEOUTclose = 0
 
 [dropbear]
-accept = 444
+accept = 443
 connect = 127.0.0.1:442
 END
 
