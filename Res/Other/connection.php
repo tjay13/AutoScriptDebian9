@@ -2,10 +2,10 @@
 error_reporting(E_ERROR | E_PARSE);
 ini_set('display_errors', '1');
 
-$DB_host = "185.61.137.174";
-$DB_user = "vpnquest1_lucifervpn";
-$DB_pass = "1534Pass1234Five";
-$DB_name = "vpnquest1_lucifervpn";
+$DB_host = '185.61.137.174';
+$DB_user = 'vpnquest1_user';
+$DB_pass = 's+(WT#r4CaB&';
+$DB_name = 'vpnquest1_dbase';
 
 $mysqli = new MySQLi($DB_host,$DB_user,$DB_pass,$DB_name);
 if ($mysqli->connect_error) {
@@ -29,8 +29,8 @@ function encrypt_key($paswd)
 	 
 	function getEncryptKey()
 	{
-		$secret_key = md5('eugcar');
-		$secret_iv = md5('sanchez');
+		$secret_key = md5('tsholovpn');
+		$secret_iv = md5('vpntsholo');
 		$keys = $secret_key . $secret_iv;
 		return encryptor('encrypt', $keys);
 	}
@@ -67,8 +67,8 @@ function encrypt_key($paswd)
 
 		$encrypt_method = "AES-256-CBC";
 		//pls set your unique hashing key
-		$secret_key = md5('eugcar sanchez');
-		$secret_iv = md5('sanchez eugcar');
+		$secret_key = md5('tsholovpn.info');
+		$secret_iv = md5('info.tsholovpn');
 
 		// hash
 		$key = hash('sha256', $secret_key);
@@ -92,19 +92,19 @@ function encrypt_key($paswd)
 
 
 $data = '';
-$premium = "duration > 0 AND is_freeze = 0";
-$vip = "is_freeze = 0 AND vip_duration > 0";
-$private = "is_freeze = 0 AND private_duration > 0";
+$premium = "is_active=1 AND is_duration > 0";
+$vip = "is_active=1 AND vip_duration > 0";
+$private = "is_active=1 AND private_duration > 0";
 
-$query = $mysqli->query("SELECT * FROM users
-WHERE ".$premium." OR ".$private." ORDER by user_id DESC");
+$query = $mysqli->query("SELECT * FROM user
+WHERE ".$premium." OR ".$vip." ORDER by id_user ASC");
 if($query->num_rows > 0)
 {
 	while($row = $query->fetch_assoc())
 	{
 		$data .= '';
-		$username = $row['user_name'];
-		$password = decrypt_key($row['user_pass']);
+		$username = $row['username'];
+		$password = decrypt_key($row['password']);
 		$password = encryptor('decrypt',$password);		
 		$data .= '/usr/sbin/useradd -p $(openssl passwd -1 '.$password.') -M '.$username.';'.PHP_EOL;
 	}
@@ -117,23 +117,22 @@ fclose($fp);
 
 #In-Active and Invalid Accounts
 $data2 = '';
-$premium_deactived = "duration <= 0";
+$premium_deactived = "is_duration <= 0";
 $vip_deactived = "vip_duration <= 0";
 $private_deactived = "private_duration <= 0";
-$is_validated = "is_validated=0";
 $is_activate = "is_active=0";
 $freeze = "is_freeze=1";
 //$suspend = "suspend=1";
 
-$query2 = $mysqli->query("SELECT * FROM users 
-WHERE ".$freeze." OR ".$premium_deactived ." AND ".$private_deactived." OR ".$is_activate."
+$query2 = $mysqli->query("SELECT * FROM user 
+WHERE ".$freeze." OR ".$premium_deactived ." AND ".$vip_deactived." OR ".$is_activate."
 ");
 if($query2->num_rows > 0)
 {
 	while($row2 = $query2->fetch_assoc())
 	{
 		$data2 .= '';
-		$toadd = $row2['user_name'];	
+		$toadd = $row2['username'];	
 		$data2 .= '/usr/sbin/userdel '.$toadd.''.PHP_EOL;
 	}
 }
