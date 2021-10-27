@@ -1,6 +1,7 @@
 <?php
 error_reporting(E_ERROR | E_PARSE);
 ini_set('display_errors', '1');
+//include('config.php');
 
 $DB_host = '185.61.137.174';
 $DB_user = 'vpnquest1_user';
@@ -114,18 +115,17 @@ $fp = fopen($location, 'w');
 fwrite($fp, $data) or die("Unable to open file!");
 fclose($fp);
 
-
 #In-Active and Invalid Accounts
 $data2 = '';
 $premium_deactived = "is_duration <= 0";
 $vip_deactived = "vip_duration <= 0";
 $private_deactived = "private_duration <= 0";
 $is_activate = "is_active=0";
-$freeze = "is_freeze=1";
-//$suspend = "suspend=1";
+$freeze = "is_freeze=0";
+$suspend = "is_suspend=0";
 
 $query2 = $mysqli->query("SELECT * FROM user 
-WHERE ".$freeze." OR ".$premium_deactived ." AND ".$vip_deactived." OR ".$is_activate."
+WHERE ".$suspend." OR ".$freeze." OR ".$premium_deactived ." AND ".$vip_deactived." OR ".$is_activate."
 ");
 if($query2->num_rows > 0)
 {
