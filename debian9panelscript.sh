@@ -3,7 +3,7 @@
 # Script by Dope~kid
 
 # requirement
-apt-get -y update && apt-get -y upgrade
+apt-get -y update
 apt-get -y install curl wget
 
 # initializing IP
@@ -85,11 +85,11 @@ echo "screenfetch" >> .profile
 cd
 rm /etc/nginx/sites-enabled/default
 rm /etc/nginx/sites-available/default
-wget -O /etc/nginx/nginx.conf "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/nginx.conf"
-wget -O /etc/nginx/conf.d/vps.conf "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/vps.conf"
-wget -O /etc/nginx/conf.d/monitoring.conf "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/monitoring.conf"
+wget -O /etc/nginx/nginx.conf "https://www.dropbox.com/s/ks0qw6p1bx9ytff/nginx.conf"
+wget -O /etc/nginx/conf.d/vps.conf "https://www.dropbox.com/s/f9ygxijg948yet6/vps.conf"
+wget -O /etc/nginx/conf.d/monitoring.conf "https://www.dropbox.com/s/38xvvcacdzmz2mj/monitoring.conf"
 mkdir -p /home/vps/public_html
-wget -O /home/vps/public_html/index.php "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/index.php"
+wget -O /home/vps/public_html/index.php "https://www.dropbox.com/s/hdt2kz74n6803f3/index.php"
 sed -i 's/listen = \/run\/php\/php7.0-fpm.sock/listen = 127.0.0.1:9000/g' /etc/php/7.0/fpm/pool.d/www.conf
 service php7.0-fpm restart
 service nginx restart
@@ -291,7 +291,7 @@ socket = r:TCP_NODELAY=1
 TIMEOUTclose = 0
 
 [dropbear]
-accept = 443
+accept = 444
 connect = 127.0.0.1:442
 END
 
@@ -351,8 +351,11 @@ sed -i 's/bind-address/#bind-address/g' /etc/mysql/mariadb.conf.d/50-server.cnf
 
 # Setting SSH To Work With Panel
 mkdir /usr/sbin/kpn
-wget -O /usr/sbin/kpn/connection.php "https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Res/Other/connection.php"
+wget -O /usr/sbin/kpn/connection.php https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Menu/connection.php &> /dev/null
 chmod -R 777 /usr/sbin/kpn/connection.php
+echo "* * * * * root /usr/bin/php /usr/sbin/kpn/connection.php >/dev/null 2>&1" > /etc/cron.d/connection-ssh
+echo "* * * * * root /bin/bash /usr/sbin/kpn/active.sh>/dev/null 2>&1"> /etc/cron.d/active-users
+echo "* * * * * root /bin/bash /usr/sbin/kpn/inactive.sh >/dev/null 2>&1" > /etc/cron.d/inactive-users
 
 # Webmin Configuration
 sed -i '$ i\dope: acl adsl-client ajaxterm apache at backup-config bacula-backup bandwidth bind8 burner change-user cluster-copy cluster-cron cluster-passwd cluster-shell cluster-software cluster-useradmin cluster-usermin cluster-webmin cpan cron custom dfsadmin dhcpd dovecot exim exports fail2ban fdisk fetchmail file filemin filter firewall firewalld fsdump grub heartbeat htaccess-htpasswd idmapd inetd init inittab ipfilter ipfw ipsec iscsi-client iscsi-server iscsi-target iscsi-tgtd jabber krb5 ldap-client ldap-server ldap-useradmin logrotate lpadmin lvm mailboxes mailcap man mon mount mysql net nis openslp package-updates pam pap passwd phpini postfix postgresql ppp-client pptp-client pptp-server proc procmail proftpd qmailadmin quota raid samba sarg sendmail servers shell shorewall shorewall6 smart-status smf software spam squid sshd status stunnel syslog-ng syslog system-status tcpwrappers telnet time tunnel updown useradmin usermin vgetty webalizer webmin webmincron webminlog wuftpd xinetd' /etc/webmin/webmin.acl
