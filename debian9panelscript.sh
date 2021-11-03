@@ -3,7 +3,7 @@
 # Script by Dope~kid
 
 # requirement
-apt-get -y update
+#apt-get -y update
 apt-get -y install curl wget
 
 # initializing IP
