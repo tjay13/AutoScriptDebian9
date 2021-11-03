@@ -371,7 +371,7 @@ w3VMBwVhspalpBuX2QWNUWE=
 KEY
 
 # Server DH2048
- cat << DH > /etc/openvpn/dh2048.pem
+ cat << DH > /etc/openvpn/easy-rsa/dh2048.pem
 -----BEGIN DH PARAMETERS-----
 MIIBCAKCAQEA1emiXAI6I7h2niDL+zRZ3CkRs0LTt1jCTL4mPx7O5aT5GjsPzXVb
 GRH6CMlQBE28Uk/Kg1lojfpV2fOL1gmyk7kaRxKO1hmr6fCS07WlfdUUbF2CKK3F
@@ -964,10 +964,7 @@ EOF
 chmod +x /etc/openvpn/script/config.sh
 
 # Creating TCP OpenVPN Config
-cat << TeeJay01 >/etc/openvpn/server_tcp.conf
-# $VPN_Name Server
-# Server by $VPN_Owner
-
+cat << TeeJay01 >/etc/openvpn/server.conf
 mode server 
 tls-server 
 port $OpenVPN_TCP_Port
@@ -1289,8 +1286,8 @@ fi
         fi
 Multilogin
 
-systemctl enable openvpn@server_tcp
-systemctl start openvpn@server_tcp
+systemctl enable openvpn@server
+systemctl start openvpn@server
 
 docker run -d --restart always --name v2ray --net host --cap-add NET_ADMIN \
  -v /etc/v2ray:/etc/v2ray \
