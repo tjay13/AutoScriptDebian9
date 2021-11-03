@@ -22,8 +22,8 @@ commonname=TsholoVPN
 email=tsholofelogarekoe@gmail.com
 
 # Mysql Database Info
-DatabasePass='1534Pass1234Five'
-DatabaseName='tsholo_vpn1'
+DatabasePass='s+(WT#r4CaB&'
+DatabaseName='vpnquest1_dbase'
 
 # configure rc.local
 cat <<EOF >/etc/rc.local
