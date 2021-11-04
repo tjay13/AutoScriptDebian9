@@ -132,10 +132,12 @@ MySSHConfig
 # Creating Banner Message
 apt-get -y install geoip-bin
 ipadd=$(wget -qO- ipv4.icanhazip.com);
-geoip=$(geoiplookup $ipadd | cut -d : -f 2);
+geoip=$(whois $ipadd |grep country -i -m 1 |cut -d ':' -f 2 |xargs);
+geoip2=$(whois $ipadd |grep city -i -m 1 |cut -d ':' -f 2 |xargs);
+
 cat << banner > /etc/banner
 <br><font color="blue"><b>Thank you for Using TsholoVPN</b><br></font><br>
-<br><font color="red"><b> Location Server: $geoip</b></font><br>
+<br><font color="red"><b> Location Server: $geoip, $geoip2</b></font><br>
 banner
 
 # SSH Fixes
