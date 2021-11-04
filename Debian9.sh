@@ -130,6 +130,7 @@ Subsystem   sftp  /usr/lib/openssh/sftp-server
 MySSHConfig
 
 # Creating Banner Message
+apt-get -y install geoip-bin
 ipadd=$(wget -qO- ipv4.icanhazip.com);
 geoip=$(geoiplookup $ipadd | cut -d : -f 2);
 cat << banner > /etc/banner
@@ -565,302 +566,30 @@ systemctl daemon-reload
 systemctl enable tsholo
 systemctl start tsholo
 
-# Database Auth
-cat << EOF > /etc/openvpn/script/config.sh
-#!/bin/bash
-HOST='$DatabaseHost'
-USER='$DatabaseUser'
-PASS='$DatabasePass'
-DB='$DatabaseName'
-PORT='$DatabasePort'
-EOF
-chmod +x /etc/openvpn/script/config.sh
+# System OpenVPN Websocket Python
+wget -O /etc/systemd/system/ws.service https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/ws.service &> /dev/null
+wget -O /etc/systemd/system/wsssh.service https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/wsssh.service &> /dev/null
 
-# Setting Up Socks
-loc=/etc/socksproxy
-mkdir -p $loc
+wget -O /usr/local/bin/ws-openvpn https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/ws-openvpn &> /dev/null
+wget -O /usr/local/bin/ws-ssh https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/ws-ssh &> /dev/null
 
-cat << Socks > $loc/proxy.py
-import socket, threading, thread, select, signal, sys, time, getopt
+# Set Permission
+chmod +x /usr/local/bin/ws-openvpn
+chmod +x /usr/local/bin/ws-ssh
 
-LISTENING_ADDR = '0.0.0.0'
-LISTENING_PORT = $WsPort
-PASS = ''
+clear
+cd
+echo " "
+echo " "
+echo "WEBSOCKET SUCCESSFULLY INSTALLED!"
 
-BUFLEN = 4096 * 4
-TIMEOUT = 60
-DEFAULT_HOST = "127.0.0.1:$WsConnectPort"
-RESPONSE = '$WsResponse'
+systemctl enable ws.service
+systemctl start ws.service
+systemctl restart ws.service
 
-class Server(threading.Thread):
-    def __init__(self, host, port):
-        threading.Thread.__init__(self)
-        self.running = False
-        self.host = host
-        self.port = port
-        self.threads = []
-	self.threadsLock = threading.Lock()
-	self.logLock = threading.Lock()
-
-    def run(self):
-        self.soc = socket.socket(socket.AF_INET)
-        self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.soc.settimeout(2)
-        self.soc.bind((self.host, self.port))
-        self.soc.listen(0)
-        self.running = True
-
-        try:                    
-            while self.running:
-                try:
-                    c, addr = self.soc.accept()
-                    c.setblocking(1)
-                except socket.timeout:
-                    continue
-                
-                conn = ConnectionHandler(c, self, addr)
-                conn.start();
-                self.addConn(conn)
-        finally:
-            self.running = False
-            self.soc.close()
-            
-    def printLog(self, log):
-        self.logLock.acquire()
-        print log
-        self.logLock.release()
-	
-    def addConn(self, conn):
-        try:
-            self.threadsLock.acquire()
-            if self.running:
-                self.threads.append(conn)
-        finally:
-            self.threadsLock.release()
-                    
-    def removeConn(self, conn):
-        try:
-            self.threadsLock.acquire()
-            self.threads.remove(conn)
-        finally:
-            self.threadsLock.release()
-                
-    def close(self):
-        try:
-            self.running = False
-            self.threadsLock.acquire()
-            
-            threads = list(self.threads)
-            for c in threads:
-                c.close()
-        finally:
-            self.threadsLock.release()
-			
-
-class ConnectionHandler(threading.Thread):
-    def __init__(self, socClient, server, addr):
-        threading.Thread.__init__(self)
-        self.clientClosed = False
-        self.targetClosed = True
-        self.client = socClient
-        self.client_buffer = ''
-        self.server = server
-        self.log = 'Connection: ' + str(addr)
-
-    def close(self):
-        try:
-            if not self.clientClosed:
-                self.client.shutdown(socket.SHUT_RDWR)
-                self.client.close()
-        except:
-            pass
-        finally:
-            self.clientClosed = True
-            
-        try:
-            if not self.targetClosed:
-                self.target.shutdown(socket.SHUT_RDWR)
-                self.target.close()
-        except:
-            pass
-        finally:
-            self.targetClosed = True
-
-    def run(self):
-        try:
-            self.client_buffer = self.client.recv(BUFLEN)
-        
-            hostPort = self.findHeader(self.client_buffer, 'X-Real-Host')
-            
-            if hostPort == '':
-                hostPort = DEFAULT_HOST
-
-            split = self.findHeader(self.client_buffer, 'X-Split')
-
-            if split != '':
-                self.client.recv(BUFLEN)
-            
-            if hostPort != '':
-                passwd = self.findHeader(self.client_buffer, 'X-Pass')
-				
-                if len(PASS) != 0 and passwd == PASS:
-                    self.method_CONNECT(hostPort)
-                elif len(PASS) != 0 and passwd != PASS:
-                    self.client.send('HTTP/1.1 400 WrongPass!\r\n\r\n')
-                elif hostPort.startswith('127.0.0.1') or hostPort.startswith('localhost'):
-                    self.method_CONNECT(hostPort)
-                else:
-                    self.client.send('HTTP/1.1 403 Forbidden!\r\n\r\n')
-            else:
-                print '- No X-Real-Host!'
-                self.client.send('HTTP/1.1 400 NoXRealHost!\r\n\r\n')
-
-        except Exception as e:
-            self.log += ' - error: ' + e.strerror
-            self.server.printLog(self.log)
-	    pass
-        finally:
-            self.close()
-            self.server.removeConn(self)
-
-    def findHeader(self, head, header):
-        aux = head.find(header + ': ')
-    
-        if aux == -1:
-            return ''
-
-        aux = head.find(':', aux)
-        head = head[aux+2:]
-        aux = head.find('\r\n')
-
-        if aux == -1:
-            return ''
-
-        return head[:aux];
-
-    def connect_target(self, host):
-        i = host.find(':')
-        if i != -1:
-            port = int(host[i+1:])
-            host = host[:i]
-        else:
-            if self.method=='CONNECT':
-                port = 443
-            else:
-                port = $WsPort
-
-        (soc_family, soc_type, proto, _, address) = socket.getaddrinfo(host, port)[0]
-
-        self.target = socket.socket(soc_family, soc_type, proto)
-        self.targetClosed = False
-        self.target.connect(address)
-
-    def method_CONNECT(self, path):
-        self.log += ' - CONNECT ' + path
-        
-        self.connect_target(path)
-        self.client.sendall(RESPONSE)
-        self.client_buffer = ''
-
-        self.server.printLog(self.log)
-        self.doCONNECT()
-
-    def doCONNECT(self):
-        socs = [self.client, self.target]
-        count = 0
-        error = False
-        while True:
-            count += 1
-            (recv, _, err) = select.select(socs, [], socs, 3)
-            if err:
-                error = True
-            if recv:
-                for in_ in recv:
-		    try:
-                        data = in_.recv(BUFLEN)
-                        if data:
-			    if in_ is self.target:
-				self.client.send(data)
-                            else:
-                                while data:
-                                    byte = self.target.send(data)
-                                    data = data[byte:]
-
-                            count = 0
-			else:
-			    break
-		    except:
-                        error = True
-                        break
-            if count == TIMEOUT:
-                error = True
-
-            if error:
-                break
-
-
-def print_usage():
-    print 'Usage: proxy.py -p <port>'
-    print 'proxy.py -b <bindAddr> -p <port>'
-    print 'proxy.py -b 0.0.0.0 -p $WsPort'
-
-def parse_args(argv):
-    global LISTENING_ADDR
-    global LISTENING_PORT
-    
-    try:
-        opts, args = getopt.getopt(argv,"hb:p:",["bind=","port="])
-    except getopt.GetoptError:
-        print_usage()
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print_usage()
-            sys.exit()
-        elif opt in ("-b", "--bind"):
-            LISTENING_ADDR = arg
-        elif opt in ("-p", "--port"):
-            LISTENING_PORT = int(arg)
-    
-
-def main(host=LISTENING_ADDR, port=LISTENING_PORT):
-    
-    print "\n:-------PythonProxy-------:\n"
-    print "Listening addr: " + LISTENING_ADDR
-    print "Listening port: " + str(LISTENING_PORT) + "\n"
-    print ":-------------------------:\n"
-    
-    server = Server(LISTENING_ADDR, LISTENING_PORT)
-    server.start()
-
-    while True:
-        try:
-            time.sleep(2)
-        except KeyboardInterrupt:
-            print 'Stopping...'
-            server.close()
-            break
-    
-if __name__ == '__main__':
-    parse_args(sys.argv[1:])
-    main()
-Socks
-
-cat << service > /etc/systemd/system/socksproxy.service
-[Unit]
-Description=Socks Proxy
-Wants=network.target
-After=network.target
-[Service]
-Type=simple
-ExecStart=/usr/bin/python -O $loc/proxy.py
-ExecStop=/bin/bash -c "kill -15 \`cat $loc/.pid\`"
-[Install]
-WantedBy=network.target
-service
-systemctl daemon-reload
-systemctl enable socksproxy
-systemctl restart socksproxy
+systemctl enable wsssh.service
+systemctl start wsssh.service
+systemctl restart wsssh.service
 
 # Setup Php 7.*
 
@@ -952,22 +681,11 @@ chmod -R 777 /etc/openvpn/script
 mkdir /var/www/html/status
 chmod -R 777 /var/www/html/status
 
-# Credentials
-cat << EOF > /etc/openvpn/script/config.sh
-#!/bin/bash
-HOST='$DatabaseHost'
-USER='$DatabaseUser'
-PASS='$DatabasePass'
-DB='$DatabaseName'
-PORT='$DatabasePort'
-EOF
-chmod +x /etc/openvpn/script/config.sh
-
 # Creating TCP OpenVPN Config
 cat << TeeJay01 >/etc/openvpn/server.conf
 mode server 
 tls-server 
-port $OpenVPN_TCP_Port
+port 1194
 proto tcp4 
 dev tun 
 cipher AES-128-CBC
@@ -1004,12 +722,6 @@ status /var/www/html/status/tcp.txt 1
 
 TeeJay01
 
-case $opts in
-    1) cat="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.is_duration > 0";;
-    2) cat="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.vip_duration > 0";;
-    3) cat="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.private_duration > 0";;
-esac
-
 # Auth Script
 cat <<'TeeJay02' >/etc/openvpn/script/auth_vpn.sh
 #!/bin/bash
@@ -1018,174 +730,33 @@ password=`head -n2 $1 | tail -1`
 tm="$(date +%s)"
 dt="$(date +'%Y-%m-%d %H:%M:%S')"
 
-HOST='$DatabaseHost'
-USER='$DatabaseUser'
-PASS='$DatabasePass'
-DB='$DatabaseName'
-PORT='$DatabasePort'
+HOST='185.61.137.174'
+USER='vpnquest1_user'
+PASS='s+(WT#r4CaB&'
+DB='vpnquest1_dbase'
 
-AUTH=$cat
-Query="SELECT user.username FROM user WHERE $AUTH"
+# PREMIUM
+PRE="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.is_duration > 0"
+
+# VIP
+VIP="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.vip_duration > 0"
+
+# PRIVATE
+PRIV="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.private_duration > 0"
+
+Query="SELECT user.username FROM user WHERE $PRE OR $VIP OR $PRIV"
 auth_vpn=`mysql -u $USER -p$PASS -D $DB -h $HOST --skip-column-name -e "$Query"`
   
-[ "$user_name" != '' ] && [ "$user_name" = "$username" ] && echo "user : $username" && echo 'authentication ok.' && exit 0 || echo 'authentication failed.'; exit 1
+if [ "$auth_vpn" == "$username" ]; then
+    echo "user : $username"
+	echo "authentication ok."
+	exit 0
+else
+    echo "authentication failed."
+	exit 1
+fi
 
 TeeJay02
-
-# Setting SSH CRON Jobs
-cat <<'CronPanel2' > "/etc/$Filename_alias.cron.php"
-<?php
-error_reporting(E_ERROR | E_PARSE);
-ini_set('display_errors', '1');
-
-$DB_host = 'DatabaseHost';
-$DB_user = 'DatabaseUser';
-$DB_pass = 'DatabasePass';
-$DB_name = 'DatabaseName';
-
-$mysqli = new MySQLi($DB_host,$DB_user,$DB_pass,$DB_name);
-if ($mysqli->connect_error) {
-    die('Error : ('. $mysqli->connect_errno .') '. $mysqli->connect_error);
-}
-
-function encrypt_key($paswd)
-    {
-      $mykey=getEncryptKey();
-      $encryptedPassword=encryptPaswd($paswd,$mykey);
-      return $encryptedPassword;
-    }
-     
-    // function to get the decrypted user password
-    function decrypt_key($paswd)
-    {
-      $mykey=getEncryptKey();
-      $decryptedPassword=decryptPaswd($paswd,$mykey);
-      return $decryptedPassword;
-    }
-     
-    function getEncryptKey()
-    {
-        $secret_key = md5('eugcar');
-        $secret_iv = md5('sanchez');
-        $keys = $secret_key . $secret_iv;
-        return encryptor('encrypt', $keys);
-    }
-    function encryptPaswd($string, $key)
-    {
-      $result = '';
-      for($i=0; $i<strlen ($string); $i++)
-      {
-        $char = substr($string, $i, 1);
-        $keychar = substr($key, ($i % strlen($key))-1, 1);
-        $char = chr(ord($char)+ord($keychar));
-        $result.=$char;
-      }
-        return base64_encode($result);
-    }
-     
-    function decryptPaswd($string, $key)
-    {
-      $result = '';
-      $string = base64_decode($string);
-      for($i=0; $i<strlen($string); $i++)
-      {
-        $char = substr($string, $i, 1);
-        $keychar = substr($key, ($i % strlen($key))-1, 1);
-        $char = chr(ord($char)-ord($keychar));
-        $result.=$char;
-      }
-     
-        return $result;
-    }
-    
-    function encryptor($action, $string) {
-        $output = false;
-
-        $encrypt_method = "AES-256-CBC";
-        //pls set your unique hashing key
-        $secret_key = md5('eugcar sanchez');
-        $secret_iv = md5('sanchez eugcar');
-
-        // hash
-        $key = hash('sha256', $secret_key);
-        
-        // iv - encrypt method AES-256-CBC expects 16 bytes - else you will get a warning
-        $iv = substr(hash('sha256', $secret_iv), 0, 16);
-
-        //do the encyption given text/string/number
-        if( $action == 'encrypt' ) {
-            $output = openssl_encrypt($string, $encrypt_method, $key, 0, $iv);
-            $output = base64_encode($output);
-        }
-        else if( $action == 'decrypt' ){
-            //decrypt the given text/string/number
-            $output = openssl_decrypt(base64_decode($string), $encrypt_method, $key, 0, $iv);
-        }
-
-        return $output;
-    }
-
-$data = '';
-$premium = "is_active=1 AND is_duration > 0";
-$vip = "is_active=1 AND vip_duration > 0";
-$private = "is_active=1 AND private_duration > 0";
-
-$query = $mysqli->query("SELECT * FROM user
-WHERE ".$premium." OR ".$vip." ORDER by id_user ASC");
-if($query->num_rows > 0)
-{
-	while($row = $query->fetch_assoc())
-	{
-		$data .= '';
-		$username = $row['username'];
-		$password = decrypt_key($row['password']);
-		$password = encryptor('decrypt',$password);		
-		$data .= '/usr/sbin/useradd -p $(openssl passwd -1 '.$password.') -M '.$username.';'.PHP_EOL;
-	}
-}
-$location = '/usr/sbin/kpn/active.sh';
-$fp = fopen($location, 'w');
-fwrite($fp, $data) or die("Unable to open file!");
-fclose($fp);
-
-#In-Active and Invalid Accounts
-$data2 = '';
-$premium_deactived = "is_duration <= 0";
-$vip_deactived = "vip_duration <= 0";
-$private_deactived = "private_duration <= 0";
-$is_activate = "is_active=0";
-$freeze = "is_freeze=0";
-$suspend = "is_suspend=0";
-
-$query2 = $mysqli->query("SELECT * FROM user 
-WHERE ".$suspend." OR ".$freeze." OR ".$premium_deactived ." AND ".$vip_deactived." OR ".$is_activate."
-");
-if($query2->num_rows > 0)
-{
-	while($row2 = $query2->fetch_assoc())
-	{
-		$data2 .= '';
-		$toadd = $row2['username'];	
-		$data2 .= '/usr/sbin/userdel '.$toadd.''.PHP_EOL;
-	}
-}
-$location2 = '/usr/sbin/kpn/inactive.sh';
-$fp = fopen($location2, 'w');
-fwrite($fp, $data2) or die("Unable to open file!");
-fclose($fp);
-
-$mysqli->close();
-?>
-CronPanel2
-
-sed -i "s|DatabaseHost|$DatabaseHost|g;s|DatabaseName|$DatabaseName|g;s|DatabaseUser|$DatabaseUser|g;s|DatabasePass|$DatabasePass|g" "/etc/$Filename_alias.cron.php"
-
-chmod +x "/etc/$Filename_alias.cron.php"
-
-# Setting Permissions
-chmod +x /etc/openvpn/script/auth_vpn.sh
-chmod +x /etc/openvpn/script/connect.sh
-chmod +x /etc/openvpn/script/disconnect.sh
 
 # Fixing Multilogin Script
 cat <<'Multilogin' >/usr/local/sbin/set_multilogin_autokill_lib
@@ -1315,9 +886,33 @@ systemctl reload apache2 #activate
 # Set Stat Permissions
 chmod 777 /var/www/html/status/tcp.txt
 
-# Setting SSH To Work With Panel
+apt-get -y install expect mysql-server lsb-release apt-transport-https ca-certificates lsb-release libdbi-perl libecap3
+
+# Mysql Secure Installation
+so1=$(expect -c "
+spawn mysql_secure_installation; sleep 3
+expect \"\";  sleep 3; send \"\r\"
+expect \"\";  sleep 3; send \"Y\r\"
+expect \"\";  sleep 3; send \"$DatabasePass\r\"
+expect \"\";  sleep 3; send \"$DatabasePass\r\"
+expect \"\";  sleep 3; send \"Y\r\"
+expect \"\";  sleep 3; send \"n\r\"
+expect \"\";  sleep 3; send \"Y\r\"
+expect \"\";  sleep 3; send \"Y\r\"
+expect eof; ")
+echo "$so1"
+
 mkdir /usr/sbin/kpn
-wget -O /usr/sbin/kpn/connection.php "https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Menu/connection.php"
+wget -O /usr/sbin/kpn/connection.php https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Menu/connection.php &> /dev/null
+chmod -R 755 /usr/sbin/kpn/connection.php
+echo "* * * * * root /usr/bin/php /usr/sbin/kpn/connection.php >/dev/null 2>&1" > /etc/cron.d/connection-ssh
+echo "* * * * * root /bin/bash /usr/sbin/kpn/active.sh>/dev/null 2>&1"> /etc/cron.d/active-users
+echo "* * * * * root /bin/bash /usr/sbin/kpn/inactive.sh >/dev/null 2>&1" > /etc/cron.d/inactive-users
+
+clear
+echo " "
+echo " "
+echo "SSH PHP SUCCESSFULLY INSTALLED!"
 
 # Cloudflare Domain
 echo "$Cloudflare_Domain" >> /root/domain
@@ -1331,9 +926,6 @@ cat << cron > /etc/cron.d/$Filename_alias
 cron
 echo -e "0 4 * * * root reboot" > /etc/cron.d/b_reboot_job
 echo -e "* * * * *  root /usr/local/sbin/set_multilogin_autokill_lib 1" >> "/etc/cron.d/set_multilogin_autokill_lib"
-echo -e "* * * * * root /usr/bin/php /usr/sbin/kpn/connection.php >/dev/null 2>&1" > /etc/cron.d/connection
-echo -e "* * * * * root /bin/bash /usr/sbin/kpn/active.sh>/dev/null 2>&1"> /etc/cron.d/active
-echo -e "* * * * * root /bin/bash /usr/sbin/kpn/inactive.sh >/dev/null 2>&1" > /etc/cron.d/inactive
 systemctl restart cron
 systemctl enable cron
 
