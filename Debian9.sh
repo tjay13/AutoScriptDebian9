@@ -187,21 +187,10 @@ socket = l:TCP_NODELAY=1
 socket = r:TCP_NODELAY=1
 TIMEOUTclose = 0
 
-[dropbear]
-accept = $Stunnel_Port1
-connect = 127.0.0.1:$Dropbear_Port1
-
-[openssh]
-accept = $Stunnel_Port2
-connect = 127.0.0.1:$SSH_Port1
-
-[openvpn]
-accept = $Stunnel_Port3
-connect = 127.0.0.1:$OpenVPN_TCP_Port
-
-[websocket]
-accept = $Stunnel_Port4
-connect = 127.0.0.1:$WsPort
+[https]
+accept = 443
+connect = 127.0.0.1:22
+connect = 127.0.0.1:444
 MyStunnelC
 
 # Restarting Stunnel
