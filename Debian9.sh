@@ -710,18 +710,21 @@ chmod -R 777 /etc/openvpn/script
 # Install Haproxy
 apt-get -y install haproxy
 cat > /etc/haproxy/haproxy.cfg <<-END
-defaults
-    mode http
-    timeout connect 10s
-    timeout client 30s
-    timeout server 30s
-frontend websocket
-    bind localhost:444
-    default_backend websocket
-backend websocket
-    balance leastconn
-    server websockets-ssh localhost:1080
-    server websockets-openvpn localhost:8880
+frontend http-in
+        # listen 80 port
+        bind *:444
+        # set default backend
+        default_backend    backend_servers
+        # send X-Forwarded-For header
+        option             forwardfor
+
+# define backend
+backend backend_servers
+        # balance with roundrobin
+        balance            roundrobin
+        # define backend servers
+        server             node01 127.0.0.1:1080 check
+        server             node02 127.0.0.1:8880 check
 END
 
 systemctl restart haproxy
