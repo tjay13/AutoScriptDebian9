@@ -14,17 +14,6 @@ echo -e "[\e[1;31mError\e[0m] This script must be run as root, exiting..."
 exit 1
 fi
 
-# Gather input
-echo -e " To exit the script, kindly Press \e[1;32mCRTL\e[0m key together with \e[1;32mC\e[0m"
-echo -e ""
-echo -e " Choose VPN Server installation type:"
-echo -e " [1] Premium Server"
-echo -e " [2] VIP Server"
-echo -e " [3] Private Server"
-until [[ "$opts" =~ ^[1-3]$ ]]; do
-read -rp " Choose from [1-3]: " -e opts
-done
-
 # Script name
 MyScriptName='TsholoVPN Premium Script'
 VPN_Owner='TsholoVPN'
@@ -875,6 +864,7 @@ echo "$so1"
 mkdir /usr/sbin/kpn
 wget -O /usr/sbin/kpn/connection.php https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Menu/connection.php &> /dev/null
 chmod -R 755 /usr/sbin/kpn/connection.php
+
 echo "* * * * * root /usr/bin/php /usr/sbin/kpn/connection.php >/dev/null 2>&1" > /etc/cron.d/connection-ssh
 echo "* * * * * root /bin/bash /usr/sbin/kpn/active.sh>/dev/null 2>&1"> /etc/cron.d/active-users
 echo "* * * * * root /bin/bash /usr/sbin/kpn/inactive.sh >/dev/null 2>&1" > /etc/cron.d/inactive-users
