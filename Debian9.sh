@@ -629,8 +629,6 @@ docker run -d --restart always --name openvpn-monitor \
   ruimarinho/openvpn-monitor gunicorn openvpn-monitor --bind 0.0.0.0:$Monitor_Port
 
 # Create OpenVPN Paths
-mkdir /etc/openvpn/script
-chmod -R 777 /etc/openvpn/script
 mkdir /var/www/html/status
 chmod -R 777 /var/www/html/status
 
@@ -675,6 +673,7 @@ status /var/www/html/status/tcp.txt 1
 TeeJay01
 
 # Auth Script
+mkdir /etc/openvpn/script
 cat <<'TeeJay02' >/etc/openvpn/script/auth_vpn.sh
 #!/bin/bash
 username=`head -n1 $1 | tail -1`   
@@ -703,6 +702,28 @@ else
 	exit 1
 fi
 TeeJay02
+
+chmod -R 777 /etc/openvpn/script
+
+# Install Haproxy
+apt-get -y install haproxy
+cat > /etc/haproxy/haproxy.cfg <<-END
+defaults
+    mode http
+    timeout connect 10s
+    timeout client 30s
+    timeout server 30s
+frontend websocket
+    bind localhost:444
+    default_backend websocket
+backend websocket
+    balance leastconn
+    server websockets-ssh localhost:1080
+    server websockets-openvpn localhost:8880
+END
+
+systemctl restart haproxy
+systemctl enable haproxy
 
 # Fixing Multilogin Script
 cat <<'Multilogin' >/usr/local/sbin/set_multilogin_autokill_lib
