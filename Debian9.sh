@@ -501,7 +501,7 @@ echo -e '
          |$$|       |$$$$$$|
          |__|       \______/  
 ' && echo "
-                       TeeJaY's Script
+       Welcome to ⚽TsholoVPN
 "
 intro
 
