@@ -186,7 +186,6 @@ socket = a:SO_REUSEADDR=1
 socket = l:TCP_NODELAY=1
 socket = r:TCP_NODELAY=1
 TIMEOUTclose = 0
-
 [https]
 accept = 443
 connect = 127.0.0.1:22
@@ -277,7 +276,6 @@ Certificate:
                 keyid:22:21:EF:00:1A:59:92:07:01:34:8A:41:8F:CF:45:16:1A:EA:F3:B8
                 DirName:/C=ZA/ST=GT/L=Vereeniging/O=TsholoVPN/CN=TsholoVPN CA/emailAddress=admin@tsholovpn.info
                 serial:97:52:0E:6B:29:C3:15:27
-
             X509v3 Extended Key Usage: 
                 TLS Web Server Authentication
             X509v3 Key Usage: 
@@ -377,21 +375,6 @@ if [[ "$(hostnamectl | grep -i Virtualization | awk '{print $2}' | head -n1)" ==
 sed -i 's|LimitNPROC|#LimitNPROC|g' /lib/systemd/system/openvpn*
 systemctl daemon-reload
 fi
-
-# Iptables Rule for OpenVPN server
-cat << 'EOFipt' > /etc/openvpn/openvpn.bash
-#!/bin/bash
-PUBLIC_INET="$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)"
-IPCIDR='10.200.0.0/16'
-IPCIDR2='10.201.0.0/16'
-iptables -I FORWARD -s $IPCIDR -j ACCEPT
-iptables -I FORWARD -s $IPCIDR2 -j ACCEPT
-iptables -t nat -A POSTROUTING -o $PUBLIC_INET -j MASQUERADE
-iptables -t nat -A POSTROUTING -s $IPCIDR -o $PUBLIC_INET -j MASQUERADE
-iptables -t nat -A POSTROUTING -s $IPCIDR2 -o $PUBLIC_INET -j MASQUERADE
-EOFipt
-chmod +x /etc/openvpn/openvpn.bash
-bash /etc/openvpn/openvpn.bash
 
 # Setting Up Squid 
 rm -rf /etc/squid/squid.con*
@@ -516,25 +499,6 @@ net.core.default_qdisc=fq
 net.ipv6.conf.all.accept_ra=2
 sysctl
 sysctl --system
-
-# Startup scripts setup
-mkdir -p /etc/wago
-cat <<EOFSH > /etc/wago/startup.sh
-#!/bin/bash
-ln -fs /usr/share/zoneinfo/$MyVPS_Time /etc/localtime
-export DEBIAN_FRONTEND=noninteractive
-iptables -A INPUT -s $(wget -4qO- http://ipinfo.io/ip) -p tcp -m multiport --dport 1:65535 -j ACCEPT
-/bin/bash /etc/openvpn/openvpn.bash
-iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport $V2ray_Port1 -j ACCEPT
-iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport $V2ray_Port2 -j ACCEPT
-iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport $V2ray_Port3 -j ACCEPT
-iptables -I INPUT -m state --state NEW -m tcp -p tcp --dport $V2ray_Port4 -j ACCEPT
-iptables -I INPUT -m state --state NEW -m udp -p udp --dport $V2ray_Port1 -j ACCEPT
-iptables -I INPUT -m state --state NEW -m udp -p udp --dport $V2ray_Port2 -j ACCEPT
-iptables -I INPUT -m state --state NEW -m udp -p udp --dport $V2ray_Port3 -j ACCEPT
-iptables -I INPUT -m state --state NEW -m udp -p udp --dport $V2ray_Port4 -j ACCEPT
-exit 0
-EOFSH
 
 # Startup Script
 cat << tsholo > /etc/systemd/system/tsholo.service
@@ -708,7 +672,6 @@ persist-key
 persist-tun
 verb 3 
 status /var/www/html/status/tcp.txt 1
-
 TeeJay01
 
 # Auth Script
@@ -718,21 +681,16 @@ username=`head -n1 $1 | tail -1`
 password=`head -n2 $1 | tail -1`
 tm="$(date +%s)"
 dt="$(date +'%Y-%m-%d %H:%M:%S')"
-
 HOST='185.61.137.174'
 USER='vpnquest1_user'
 PASS='s+(WT#r4CaB&'
 DB='vpnquest1_dbase'
-
 # PREMIUM
 PRE="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.is_duration > 0"
-
 # VIP
 VIP="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.vip_duration > 0"
-
 # PRIVATE
 PRIV="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.private_duration > 0"
-
 Query="SELECT user.username FROM user WHERE $PRE OR $VIP OR $PRIV"
 auth_vpn=`mysql -u $USER -p$PASS -D $DB -h $HOST --skip-column-name -e "$Query"`
   
@@ -744,7 +702,6 @@ else
     echo "authentication failed."
 	exit 1
 fi
-
 TeeJay02
 
 # Fixing Multilogin Script
@@ -760,7 +717,6 @@ if [ -e "/var/log/secure" ]; then
         OS=2;
         LOG="/var/log/secure";
 fi
-
 if [ $OS -eq 1 ]; then
     service ssh restart > /dev/null 2>&1;
 fi
@@ -772,7 +728,6 @@ fi
 if [[ ${1+x} ]]; then
         MAX=$1;
 fi
-
         cat /etc/passwd | grep "/home/" | cut -d":" -f1 > /root/user.txt
         username1=( `cat "/root/user.txt" `);
         i="0";
@@ -911,7 +866,6 @@ cat << cron > /etc/cron.d/$Filename_alias
 * * * * * root php -q /etc/$Filename_alias.cron.php
 * * * * * root bash /etc/openvpn/active.sh
 * * * * * root bash /etc/openvpn/inactive.sh
-
 cron
 echo -e "0 4 * * * root reboot" > /etc/cron.d/b_reboot_job
 echo -e "* * * * *  root /usr/local/sbin/set_multilogin_autokill_lib 1" >> "/etc/cron.d/set_multilogin_autokill_lib"
@@ -922,12 +876,9 @@ systemctl enable cron
 clear
 
 cat << logs | tee -a ~/log-install.txt
-
 INSTALLATION HAS BEEN COMPLETED!!
 ============================-AUTOSCRIPT WAGO-G-============================
-
 ---------------------------------------------------------------------------
-
    >>> Service & Port
    - OpenSSH                 : $SSH_Port1, $SSH_Port2 
    - OpenVPN                 : TCP $OpenVPN_TCP_Port UDP $OpenVPN_UDP_Port
@@ -942,7 +893,6 @@ INSTALLATION HAS BEEN COMPLETED!!
    - V2RAY Vmess None TLS    : $V2ray_Port2
    - V2RAY Vless TLS         : $V2ray_Port3
    - V2RAY Vless None TLS    : $V2ray_Port4
-
    >>> Server Information & Features
    - Timezone                : Africa/Johannesburg (GMT +2)
    - Fail2Ban                : [ON]
@@ -952,9 +902,7 @@ INSTALLATION HAS BEEN COMPLETED!!
    - Webmin Login Page       : http://$IPADDR:10000/
    - OpenVPN Monitor         : http://$IPADDR:$Monitor_Port/
 ---------------------------------------------------------------------------
-
 ===========================================================================
-
 logs
 
 # Clearing Logs
