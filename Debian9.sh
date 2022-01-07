@@ -927,3 +927,23 @@ rm -f *.sh
 
 cd
 exit 0
+
+# Install Routes
+ipadd=$(wget -qO- ipv4.icanhazip.com);
+sysctl -p
+iptables -F; iptables -X; iptables -Z
+iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $ipadd
+iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -s 10.8.0.0/24 -j ACCEPT
+iptables -A FORWARD -j REJECT
+iptables -A INPUT -p tcp --dport 1194 -j ACCEPT
+iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
+iptables -A INPUT -p tcp --dport 81 -j ACCEPT
+iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+iptables -A OUTPUT -p tcp --destination-port 25 -j DROP
+iptables -A OUTPUT -p udp --destination-port 25 -j DROP
+iptables -A OUTPUT -p tcp --destination-port 465 -j DROP
+iptables -A OUTPUT -p udp --destination-port 465 -j DROP
+iptables -A OUTPUT -p tcp --destination-port 587 -j DROP
+iptables -A OUTPUT -p udp --destination-port 587 -j DROP
