@@ -932,10 +932,10 @@ exit 0
 ipadd=$(wget -qO- ipv4.icanhazip.com);
 sysctl -p
 iptables -F; iptables -X; iptables -Z
-iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE
-iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -j SNAT --to $ipadd
+iptables -t nat -A POSTROUTING -s 10.200.0.0/24 -o eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 10.200.0.0/24 -j SNAT --to $ipadd
 iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-iptables -A FORWARD -s 10.8.0.0/24 -j ACCEPT
+iptables -A FORWARD -s 10.200.0.0/24 -j ACCEPT
 iptables -A FORWARD -j REJECT
 iptables -A INPUT -p tcp --dport 1194 -j ACCEPT
 iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
