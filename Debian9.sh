@@ -1,105 +1,251 @@
 #!/bin/bash
-# Version: 0.4.r2
-export DEBIAN_FRONTEND=noninteractive
-history -c && rm -rf ~/.bash_history
-# Check VPS Is Debian
-source /etc/os-release
-if [[ "$ID" != 'debian' ]]; then
-echo -e "[\e[1;31mError\e[0m] This script is for Debian only, exiting..." 
-exit 1
-fi
+#    ░▒▓█ ☁️ TsholoVPN Script 1.0.0 ☁️ █▓▒░" 
+#                         by: TsholoVPN
 
-if [[ $EUID -ne 0 ]];then
-echo -e "[\e[1;31mError\e[0m] This script must be run as root, exiting..."
-exit 1
-fi
+#########################################################
+###      Input Your Desired Configuration Information
+#########################################################
 
-# Script name
-MyScriptName='TsholoVPN Premium Script'
-VPN_Owner='TsholoVPN'
-VPN_Name='TsholoVPN'
-Filename_alias='tsholovpn'
+# Script Name
+MyScriptName='TsholoVPN'
+
+# Server Name for openvpn config and banner
+ServerName='TsholoVPN'
+
+# OpenSSH Ports
+SSH_Port1='22'
+SSH_Port2='299'
+
+# Dropbear Ports
+Dropbear_Port1='790'
+Dropbear_Port2='2770'
+
+# Stunnel Ports
+Stunnel_Port1='443' # through Dropbear
+Stunnel_Port2='444' # through OpenSSH
+Stunnel_Port3='445' # through Openvpn
+Stunnel_Port4='441' # through WebSocket
+
+# OpenVPN Ports
+OpenVPN_TCP_Port='1194'
+OpenVPN_UDP_Port='1195'
+
+# Squid Ports
+Squid_Port1='3128'
+Squid_Port2='8080'
+Squid_Port3='9005'
+
+# Python Vars for deb9
+Python_Version=3.6.9
+Python_Url=https://www.python.org/ftp/python/$Python_Version/Python-$Python_Version.tar.xz
+
+# Python Socks Proxy
+WsPort='80'  # for port 8080 change cloudflare SSL/TLS to full
+WsResponse='HTTP/1.1 101 Switching Protocols\r\n\r\n'
+WsHTTPResponse='HTTP/1.1 200 OK\r\n\r\n'
+
+# SSLH Port
+MainPort='442' # main port to tunnel default 443
+
+# WebServer Ports
+Php_Socket='9000'
+Openvpn_Monitoring='89'
+Tcp_Monitor_Port='450'
+Udp_Monitor_Port='451'
+Nginx_Port='85' 
+Apache_Port='81' # for openvpn panel stat port
+
+# DNS Resolver
+Dns_1='8.8.8.8' # GoogleDNS
+Dns_2='8.8.4.4' # GoogleDNS
 
 # Server local time
 MyVPS_Time='Africa/Johannesburg'
 
-# OpenSSH Ports
-SSH_Port1='22'
-SSH_Port2='109'
-
-# Dropbear Ports
-Dropbear_Port1='442'
-Dropbear_Port2='445'
-
-# Stunnel Ports
-Stunnel_Port1='143' # through Dropbear
-Stunnel_Port2='444' # through OpenSSH
-Stunnel_Port3='441' # through OpenVPN
-Stunnel_Port4='443' # through Web Socket
-
-# OpenVPN Ports
-OpenVPN_TCP_Port='1194'
-OpenVPN_UDP_Port='9019'
-
-# Squid Ports
-Squid_Port1='8080'
-Squid_Port2='3128'
-Squid_Port3='60000'
-
-# Nginx port
-Nginx_Port='85'
-
-# Apache Port
-Apache_Port='80'
-
-# Monitor Ports
-MGMT_TCP_PORT='5555'
-MGMT_UDP_PORT='5556'
-Monitor_Port='5000'
-
-# Websocket Vars
-WsPort='8880'
-WsConnectPort='22'
-WsResponse='HTTP/1.1 101 Switching Protocols\r\n\r\n'
-
-# V2Ray Vars
-V2ray_Port1='8443' # through vmess tls
-V2ray_Port2='2082' # through vmess none tls
-V2ray_Port3='2053' # through vless tls
-V2ray_Port4='2083' # through vless none tls
-UUID='37fb4c33-c93d-4274-9334-716a7be713bb'
-domain='dexter.wtb-crackers.tk'
-
-# Database Info
+# Database Info for panel
 DatabaseHost='185.61.137.174';
 DatabaseName='vpnquest1_dbase';
 DatabaseUser='vpnquest1_user';
 DatabasePass='s+(WT#r4CaB&';
 DatabasePort='3306';
 
-# Apache Directory
-web=/var/www/html
+#########################################################
+###        TsholoVPN Script AutoScript Code Begins...
+#########################################################
 
-# Get Public IP
-IPADDR="$( wget -qO- ipv4.icanhazip.com)"
+function ip_address(){
+  local IP="$( ip addr | egrep -o '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}' | egrep -v "^192\.168|^172\.1[6-9]\.|^172\.2[0-9]\.|^172\.3[0-2]\.|^10\.|^127\.|^255\.|^0\." | head -n 1 )"
+  [ -z "${IP}" ] && IP="$( wget -qO- -t1 -T2 ipv4.icanhazip.com )"
+  [ -z "${IP}" ] && IP="$( wget -qO- -t1 -T2 ipinfo.io/ip )"
+  [ ! -z "${IP}" ] && echo "${IP}" || echo
+} 
+IPADDR="$(ip_address)"
 
-# Update VPS
-APT="apt-get --allow-unauthenticated -y"
-$APT update
-yes | $APT upgrade
+# Colours
+white='\e[0;37m'
+green='\e[0;32m'
+NC='\e[0m'
 
-systemctl stop apache2
-$APT install dropbear openvpn stunnel4 squid python3 apt-transport-https software-properties-common gnupg2 ca-certificates curl nginx fail2ban mariadb-server
+# Requirement
+apt install -y bzip2 gzip coreutils curl
+sysctl -w net.ipv6.conf.all.disable_ipv6=1 && sysctl -w net.ipv6.conf.default.disable_ipv6=1
 
-# Removing Unnecessary packages
-$APT remove --purge ufw firewalld
-$APT autoremove
+# Initializing Server
+export DEBIAN_FRONTEND=noninteractive
+source /etc/os-release
 
-# Configure SSH
-mv /etc/ssh/sshd_config /etc/ssh/sshd-config-old
-cat << MySSHConfig > /etc/ssh/sshd_config
-Port $SSH_Port1
-Port $SSH_Port2
+# Get Update
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get upgrade -y
+
+# Disable IPV6
+echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+
+# Add DNS server ipv4
+echo "nameserver $Dns_1" > /etc/resolv.conf
+echo "nameserver $Dns_2" >> /etc/resolv.conf
+
+# Install Components
+apt-get -y install libio-pty-perl libauthen-pam-perl apt-show-versions libnet-ssleay-perl
+
+# Set System Time
+ln -fs /usr/share/zoneinfo/$MyVPS_Time /etc/localtime
+
+# NeoFetch
+apt-get --reinstall --fix-missing install -y bzip2 gzip coreutils wget screen rsyslog iftop htop net-tools zip unzip wget net-tools curl nano sed screen gnupg gnupg1 bc apt-transport-https build-essential dirmngr libxml-parser-perl neofetch git
+
+# Setting Terminal Message
+rm .profile
+cat << 'intro' >> .profile
+white='\e[0;37m'
+green='\e[0;32m'
+NC='\e[0m'
+
+if [ "$BASH" ]; then
+  if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+  fi
+fi
+
+mesg n || true
+clear
+echo ""
+echo ""
+figlet TsholoVPN -c | lolcat
+echo -e "                             ${white}Welcome to ⚽TsholoVPN${NC}"
+echo -e "                          ${green}Type 'menu' To List Commands${NC}"
+intro
+
+# Removing some firewall tools that may affect other services
+apt-get remove --purge ufw firewalld -y
+ 
+# Installing some important machine essentials
+apt-get install nano sudo wget zip unzip tar gzip iptables bc rc build-essential gcc cron dos2unix whois ngrep screen whois ngrep dnsutils ruby -y
+
+# Now installing all our wanted services
+apt-get install dropbear openvpn stunnel4 squid python3 apt-transport-https software-properties-common gnupg2 ca-certificates curl nginx fail2ban mariadb-server sslh -y
+
+# Installing all required packages to install Webmin
+apt-get install perl libnet-ssleay-perl libauthen-pam-perl libio-pty-perl apt-show-versions shared-mime-info -y
+
+# Installing a text colorizer and design
+gem install lolcat
+apt-get install figlet
+
+# Installing Php
+apt -y install php php-fpm php-cli php-mysql php-xml php-json php-common php-zip php-gd php-mbstring php-curl php-bcmath
+
+# Stop Nginx
+systemctl stop nginx
+
+# Install Apache2
+sudo apt-get install apache2 -y
+
+# Setup Apache
+sed -i "s|Listen 80|Listen $Apache_Port|g" /etc/apache2/ports.conf
+service apache2 restart
+systemctl reload apache2 #activate
+
+cd /etc/default/
+mv sslh sslh-old
+cat << sslh > /etc/default/sslh
+RUN=yes
+
+DAEMON=/usr/sbin/sslh
+
+DAEMON_OPTS="--user sslh --listen 0.0.0.0:$MainPort --ssh 127.0.0.1:$Dropbear_Port2 --openvpn 127.0.0.1:$OpenVPN_TCP_Port --ssl 127.0.0.1:4443 --pidfile /var/run/sslh/sslh.pid"
+sslh
+
+#Restart Service
+systemctl daemon-reload
+systemctl enable sslh
+systemctl start sslh
+systemctl restart sslh
+
+# Install Webmin
+wget https://www.dropbox.com/s/0cusbpgvyit6oke/webmin_1.801_all.deb
+dpkg --install webmin_1.801_all.deb
+sleep 1
+rm -rf webmin_1.801_all.deb
+ 
+# Configuring webmin server config to use only http instead of https
+sed -i 's|ssl=1|ssl=0|g' /etc/webmin/miniserv.conf
+ 
+# Then restart to take effect
+systemctl restart webmin
+
+# remove unused
+apt-get -y --purge remove samba*;
+apt-get -y --purge remove sendmail*;
+apt-get -y --purge remove bind9*;
+
+# Setup Mysql
+apt-get install expect libdbi-perl libecap3 -y
+
+# Mysql Secure Installation
+so1=$(expect -c "
+spawn mysql_secure_installation; sleep 3
+expect \"\";  sleep 3; send \"\r\"
+expect \"\";  sleep 3; send \"Y\r\"
+expect \"\";  sleep 3; send \"$DatabasePass\r\"
+expect \"\";  sleep 3; send \"$DatabasePass\r\"
+expect \"\";  sleep 3; send \"Y\r\"
+expect \"\";  sleep 3; send \"n\r\"
+expect \"\";  sleep 3; send \"Y\r\"
+expect \"\";  sleep 3; send \"Y\r\"
+expect eof; ")
+echo "$so1"
+
+# Mysql Configure localhost
+sed -i 's/bind-address/#bind-address/g' /etc/mysql/mariadb.conf.d/50-server.cnf
+sed -i '/max_connections/c\max_connections = 5000' /etc/mysql/mariadb.conf.d/50-server.cnf
+ 
+# Then restart to take effect
+systemctl restart mysql
+
+apt-get -y install geoip-bin
+ipadd=$(wget -qO- ipv4.icanhazip.com);
+geoip=$(whois $ipadd |grep country -i -m 1 |cut -d ':' -f 2 |xargs);
+geoip2=$(whois $ipadd |grep descr -i -m 1 |cut -d ':' -f 2 |xargs);
+
+cat << banner > /etc/zorro-luffy
+<br><font color="blue"><b>⚽TsholoVPN</b></font>
+<br><font color="red"><b>Server: $geoip, $geoip2</b></font><br>
+banner
+
+# Removing some duplicated sshd server configs
+rm -f /etc/ssh/sshd_config
+sleep 1
+
+# Creating a SSH server config using cat eof tricks
+cat <<'MySSHConfig' > /etc/ssh/sshd_config
+# TsholoVPN Script OpenSSH Server config
+# TsholoVPN Script
+Port myPORT1
+Port myPORT2
+AddressFamily inet
+ListenAddress 0.0.0.0
 HostKey /etc/ssh/ssh_host_rsa_key
 HostKey /etc/ssh/ssh_host_ecdsa_key
 HostKey /etc/ssh/ssh_host_ed25519_key
@@ -112,82 +258,566 @@ ChallengeResponseAuthentication no
 UsePAM yes
 X11Forwarding yes
 PrintMotd no
+ClientAliveInterval 300
 ClientAliveCountMax 2
-Banner /etc/banner
+UseDNS no
+Banner /etc/zorro-luffy
 AcceptEnv LANG LC_*
-Subsystem   sftp  /usr/lib/openssh/sftp-server
+Subsystem  sftp  /usr/lib/openssh/sftp-server
 MySSHConfig
 
-# Creating Banner Message
-apt-get -y install geoip-bin
-ipadd=$(wget -qO- ipv4.icanhazip.com);
-geoip=$(whois $ipadd |grep country -i -m 1 |cut -d ':' -f 2 |xargs);
-geoip2=$(whois $ipadd |grep descr -i -m 1 |cut -d ':' -f 2 |xargs);
+sleep 2
+# Now we'll put our ssh ports inside of sshd_config
+sed -i "s|myPORT1|$SSH_Port1|g" /etc/ssh/sshd_config
+sed -i "s|myPORT2|$SSH_Port2|g" /etc/ssh/sshd_config
 
-cat << banner > /etc/banner
-<br><font color="blue"><b>⚽TsholoVPN</b></font>
-<br><font color="red"><b>Server: $geoip, $geoip2</b></font><br>
-banner
+# My workaround code to remove `BAD Password error` from passwd command, it will fix password-related error on their ssh accounts.
+sed -i '/password\s*requisite\s*pam_cracklib.s.*/d' /etc/pam.d/common-password
+sed -i 's/use_authtok //g' /etc/pam.d/common-password
 
-# SSH Fixes
-sed -i '/password\s*requisite\s*pam_cracklib.s.*/d;s/use_authtok //g' /etc/pam.d/common-password
+# Some command to identify null shells when you tunnel through SSH or using Stunnel, it will fix user/pass authentication error on HTTP Injector, KPN Tunnel, eProxy, SVI, HTTP Proxy Injector etc ssh/ssl tunneling apps.
 sed -i '/\/bin\/false/d' /etc/shells
 sed -i '/\/usr\/sbin\/nologin/d' /etc/shells
 echo '/bin/false' >> /etc/shells
 echo '/usr/sbin/nologin' >> /etc/shells
-systemctl restart ssh
 
-# Install Dropbear
-mv /etc/default/dropbear /etc/default/dropbear-old
-cat << MyDropbear > /etc/default/dropbear
+# Restarting openssh service
+systemctl restart ssh
+  
+# Removing some duplicate config file
+rm -rf /etc/default/dropbear*
+ 
+# creating dropbear config using cat eof tricks
+cat <<'MyDropbear' > /etc/default/dropbear
+# TsholoVPN Script Dropbear Config
 NO_START=0
-DROPBEAR_PORT=$Dropbear_Port1
-DROPBEAR_EXTRA_ARGS="-p $Dropbear_Port2"
-DROPBEAR_BANNER="/etc/banner"
+DROPBEAR_PORT=PORT01
+DROPBEAR_EXTRA_ARGS="-p PORT02"
+DROPBEAR_BANNER="/etc/zorro-luffy"
 DROPBEAR_RSAKEY="/etc/dropbear/dropbear_rsa_host_key"
 DROPBEAR_DSSKEY="/etc/dropbear/dropbear_dss_host_key"
 DROPBEAR_ECDSAKEY="/etc/dropbear/dropbear_ecdsa_host_key"
 DROPBEAR_RECEIVE_WINDOW=65536
 MyDropbear
+
+# Now changing our desired dropbear ports
+sed -i "s|PORT01|$Dropbear_Port1|g" /etc/default/dropbear
+sed -i "s|PORT02|$Dropbear_Port2|g" /etc/default/dropbear
+ 
+# Restarting dropbear service
 systemctl restart dropbear
 
-# Install Stunnel
+# STUNNEL
 StunnelDir=$(ls /etc/default | grep stunnel | head -n1)
-cat << MyStunnelD > /etc/default/stunnel4
+
+# Creating stunnel startup config using cat eof tricks
+cat <<'MyStunnelD' > /etc/default/$StunnelDir
+# TsholoVPN Script Stunnel Config
 ENABLED=1
 FILES="/etc/stunnel/*.conf"
 OPTIONS=""
-BANNER="/etc/banner"
+BANNER="/etc/zorro-luffy"
 PPP_RESTART=0
 # RLIMITS="-n 4096 -d unlimited"
 RLIMITS=""
 MyStunnelD
-sed -i '/ENABLED=/{s/0/1/g}' /etc/init.d/stunnel4
+
+# Removing all stunnel folder contents
 rm -rf /etc/stunnel/*
+ 
+# Creating stunnel certifcate using openssl
+openssl req -new -x509 -days 9999 -nodes -subj "/C=SA/ST=GP/L=Sebokeng/O=$MyScriptName/OU=$MyScriptName/CN=$MyScriptName" -out /etc/stunnel/stunnel.pem -keyout /etc/stunnel/stunnel.pem
 
-# Create SSL Certs
-openssl req -new -x509 -days 9999 -nodes -subj "/C=PH/ST=NCR/L=Manila/O=$MyScriptName/OU=$MyScriptName/CN=$MyScriptName" -out /etc/stunnel/stunnel.pem -keyout /etc/stunnel/stunnel.pem &> /dev/null
-
-# Creating Stunnel Config
-cat << MyStunnelC > /etc/stunnel/stunnel.conf
+# Creating stunnel server config
+cat <<'MyStunnelC' > /etc/stunnel/stunnel.conf
+# My Stunnel Config
 pid = /var/run/stunnel.pid
 cert = /etc/stunnel/stunnel.pem
 client = no
-socket = a:SO_REUSEADDR=1
 socket = l:TCP_NODELAY=1
 socket = r:TCP_NODELAY=1
 TIMEOUTclose = 0
-[https]
-accept = 443
-connect = 127.0.0.1:22
-connect = 127.0.0.1:444
+
+[dropbear]
+accept = Stunnel_Port1
+connect = 127.0.0.1:MainPort
+connect = 127.0.0.1:WsPort
+
 MyStunnelC
 
-# Restarting Stunnel
-systemctl daemon-reload
-systemctl restart stunnel4
+# setting stunnel ports
+sed -i "s|Stunnel_Port1|$Stunnel_Port1|g" /etc/stunnel/stunnel.conf
+sed -i "s|Stunnel_Port2|$Stunnel_Port2|g" /etc/stunnel/stunnel.conf
+sed -i "s|Stunnel_Port3|$Stunnel_Port3|g" /etc/stunnel/stunnel.conf
+sed -i "s|Stunnel_Port4|$Stunnel_Port4|g" /etc/stunnel/stunnel.conf
+sed -i "s|dropbear_port_c|$Dropbear_Port1|g" /etc/stunnel/stunnel.conf
+sed -i "s|openssh_port_c|$SSH_Port1|g" /etc/stunnel/stunnel.conf
+sed -i "s|openvpn_port_c|$OpenVPN_TCP_Port|g" /etc/stunnel/stunnel.conf
+sed -i "s|WsPort|$WsPort|g" /etc/stunnel/stunnel.conf
 
-# [ Setup Openvpn ]
+# Restarting stunnel service
+systemctl restart $StunnelDir
+
+# SOCKS PROXY
+mkdir -p /etc/TsholoVPN-script/py-socksproxy
+
+# Setting Up Socks
+loc=/etc/socksproxy
+apachedir=/var/www/html
+mkdir -p $loc
+
+rm -rf $apachedir/index.html
+rm -rf apachedir/index.nginx-debian.html
+cat << web > $apachedir/index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SocksProxy</title>
+    <meta name="viewport" content="width=device-width">
+</head>
+<body>
+    <center>SocksProxy Server by<br><a href="https://t.me/TsholoVPN">TsholoVPN</a><br><br>Copyright &#169; 2022</center>
+</body>
+</html>
+web
+
+cat << Socks > $loc/proxy.py
+#!/usr/bin/env python3
+# encoding: utf-8
+# SOCKs Proxy by TsholoVPN
+import socket, threading, _thread, select, signal, sys, time, os, re
+ploc=os.path.dirname(os.path.realpath(__file__))
+recvbuff = 65536
+success = b"$WsResponse" # RESPONSE MESSEGE FOR WEBSOCKET 
+success2 = b"$WsHTTPResponse" # RESPONSE HTTP MESSAGE 
+
+class Server(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.running = False
+        self.host = '0.0.0.0'
+        self.port = $WsPort # WEBSOCKET PORT
+        self.dport= 19 # DON'T CHANGE
+        self.threads = []
+        self.threadsLock = threading.Lock()
+        self.logLock = threading.Lock()
+        print("Listening on host %s for port %s." % (self.host, self.port))
+
+    def run(self):
+        self.soc = socket.socket(socket.AF_INET)
+        self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.soc.settimeout(2)
+        self.soc.bind((self.host, self.port))
+        self.soc.listen(0)
+        self.running = True
+
+        try:
+            while self.running:
+                try:
+                    c, addr = self.soc.accept()
+                    c.setblocking(1)
+                except socket.timeout:
+                    continue
+
+                conn = ConnectionHandler(c, self, addr)
+                conn.start()
+                self.addConn(conn)
+        finally:
+            self.running = False
+            self.soc.close()
+
+    def printLog(self, log):
+        self.logLock.acquire()
+        print(log)
+        self.logLock.release()
+
+    def addConn(self, conn):
+        try:
+            self.threadsLock.acquire()
+            if self.running:
+                self.threads.append(conn)
+        finally:
+            self.threadsLock.release()
+
+    def removeConn(self, conn):
+        try:
+            self.threadsLock.acquire()
+            self.threads.remove(conn)
+        finally:
+            self.threadsLock.release()
+
+    def close(self):
+        try:
+            self.running = False
+            self.threadsLock.acquire()
+
+            threads = list(self.threads)
+            for c in threads:
+                c.close()
+        finally:
+            self.threadsLock.release()
+
+def reader(loc):
+     f = open(loc, 'r')
+     cont=f.read()
+     f.close()
+     return cont
+
+def to_b(str):
+    return bytes(str, 'utf-8')
+
+def bsplitlines(bstr):
+    return re.split(b'[\r\n]+', bstr)
+
+def parser(req):
+    try:
+        lines=bsplitlines(req)
+        if re.match(b"^GET", lines[0]):
+            rloc=lines[0].decode('utf-8').split(' ')[1]
+            wloc=ploc+'/web'+rloc
+            if rloc == '/':
+                wloc+='index.html'
+                return b"HTTP/1.1 200 OK\r\n\r\n"+to_b(reader(wloc)) if os.path.exists(wloc) else failure
+            else:
+                return None
+    except:
+        return None
+
+class ConnectionHandler(threading.Thread):
+    def __init__(self, socClient, server, addr):
+        threading.Thread.__init__(self)
+        self.clientClosed = False
+        self.targetClosed = True
+        self.client = socClient
+        self.client_buffer = ""
+        self.server = server
+        self.cl_addr = addr
+        self.sshport = $Dropbear_Port1 # SSH PORT
+        self.apacheport = $Apache_Port # APACHE PORT
+        self.openvpnport = $OpenVPN_TCP_Port # OPENVPN PORT
+
+    def close(self):
+        try:
+            if not self.clientClosed:
+                self.client.shutdown(socket.SHUT_RDWR)
+                self.client.close()
+        except:
+            pass
+        finally:
+            self.clientClosed = True
+
+        try:
+            if not self.targetClosed:
+                self.target.shutdown(socket.SHUT_RDWR)
+                self.target.close()
+        except:
+            pass
+        finally:
+            self.targetClosed = True
+        
+        self.server.removeConn(self)
+        print(self in self.server.threads)
+
+    def log_time(self, msg):
+        #print(time.strftime("[%H:%M:%S]"), msg)
+        pass
+    
+    def proxy_apache(self, buff):
+        (soc_family, soc_type, proto, _, address) = socket.getaddrinfo('127.0.0.1', self.apacheport)[0]
+        apache = socket.socket(soc_family, soc_type, proto)
+        apache.connect(address)
+        apache.sendall(buff)
+        apache_buff = apache.recv(recvbuff)
+            
+        # get rest of body
+        resp = re.split(b"\r\n\r\n", apache_buff)
+        header, body = resp[0], b"".join(resp[1:])
+
+        remaining = int(self.findHeader("Content-Length", header.decode("utf-8"))) - len(body)
+        body += apache.recv(remaining)
+
+        self.client.sendall(header + b"\r\n\r\n" +  body)
+
+    def run(self):
+        sport=str(self.server.port)
+        dport=str(self.server.dport)
+        try:
+            self.client_buffer = self.client.recv(recvbuff)
+            buff = self.client_buffer
+            
+            hostPort = '127.0.0.1:'+str(self.server.dport)
+            self.log_time("client: %s - server: %s - buff: %s" % (self.cl_addr, hostPort, buff))
+            
+            try:
+                uhost = self.findHeader('Host', buff.decode('utf-8'))
+                if uhost == "":
+                    self.log_time(self.client.recv(recvbuff))
+            except:
+                pass
+
+            uagent = self.findHeader('User-Agent', buff.decode('utf-8'))
+            if uagent:     
+                  self.proxy_apache(buff)
+                  self.close()
+                  return
+
+            upgrade = self.findHeader('Upgrade', buff.decode('utf-8'))
+            if upgrade == "":
+                 self.client.send(success2)           
+                 self.method_CONNECT(hostPort, self.openvpnport)
+            else:
+                if upgrade == "openvpn":
+                    self.client.send(success)
+                    self.method_CONNECT(hostPort, self.openvpnport)
+                else:
+                    self.client.send(success)
+                    self.method_CONNECT(hostPort, self.sshport)
+        except:
+            pass
+        finally:
+            self.close()
+
+    def findHeader(self, head, header):
+        hdr={}
+        for line in header.splitlines():
+            ls=line.split(':')
+            if len(ls) == 2:
+                hdr[ls[0].strip()]=ls[1].strip()
+        return hdr[head] if head in hdr else ""
+
+    def connect_target(self, host, port):
+        i = host.find(':')
+        if i != -1:
+            host = host[:i]
+        
+        (soc_family, soc_type, proto, _, address) = socket.getaddrinfo(host, port)[0]
+
+        self.target = socket.socket(soc_family, soc_type, proto)
+        self.target.setsockopt(socket.SOL_SOCKET, socket.TCP_NODELAY, 1)
+        self.targetClosed = False
+        self.target.connect(address)
+        self.t_addr = address
+
+    def method_CONNECT(self, path, port):
+        self.connect_target(path, port)
+        #self.client.send(success)
+        self.client_buffer = ""
+        self.doCONNECT()
+    
+    def doCONNECT(self):
+        socs = [self.client, self.target]
+        error = False
+        count=0
+        while True:
+            (recv, _, err) = select.select(socs, [], socs, 3)
+            if err:
+                count+=1
+                time.sleep(1)
+            elif recv:
+                for in_ in recv:
+                    try:
+                        data = in_.recv(recvbuff)
+                        if data:
+                            count=0
+                            if in_ is self.target:
+                                try:
+                                    self.client.connect(self.cl_addr)
+                                except:
+                                    pass
+                                self.client.send(data)
+                            else:
+                                try:
+                                    self.target.connect(self.t_addr)
+                                except Exception as e:
+                                    pass
+                                while data:
+                                    byte = self.target.send(data)
+                                    data = data[byte:]
+                        else:
+                            time.sleep(1)
+                            count+=1
+                            break
+                    except Exception as e:
+                        count+=1
+                        print(f"{type(e).__name__}: {e}")
+                else:
+                    continue
+                break
+
+def main():
+    pidx=str(os.getpid())
+    pid=open(ploc+'/.pid', 'w')
+    pid.write(pidx)
+    pid.close()
+    print("\033[0;34m="*8,"\033[1;32mPROXY SOCKS","\033[0;34m="*8,"\n\033[1;33m\033[1;32m")
+    server = Server()
+    server.start()
+    print('PID:', pidx)
+    print('\n'+"\033[0;34m="*11,"\033[1;32mTsholoVPN","\033[0;34m=\033[1;37m"*11,"\n")
+    while True:
+        try:
+            time.sleep(2)
+        except KeyboardInterrupt:
+            server.close()
+            print("\nCancelled...")
+            exit()
+
+if __name__ == "__main__":
+    main()
+Socks
+
+# Fix For Debian 9
+if [ $(cat /etc/debian_version) == '9.13' ]; then
+  VERSION=9.13
+echo -e "Updating Python3 This May Take  A While"
+apt-get install build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev curl libbz2-dev -y
+wget $Python_Url
+tar xf Python-$Python_Version.tar.xz
+cd Python-$Python_Version
+./configure --disable-tests
+cd
+make -C Python-$Python_Version -j8 EXTRATESTOPTS=--list-tests install
+# creating a service for socks proxy debian 9
+cat << service > /etc/systemd/system/socksproxy.service
+[Unit]
+Description=Socks Proxy
+Wants=network.target
+After=network.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/env python3.6 /etc/socksproxy/proxy.py
+ExecStop=/bin/bash -c "kill -15 \`cat $loc/.pid\`"
+[Install]
+WantedBy=network.target
+service
+else
+# creating a service
+cat << service > /etc/systemd/system/socksproxy.service
+[Unit]
+Description=Socks Proxy
+Wants=network.target
+After=network.target
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /etc/socksproxy/proxy.py
+ExecStop=/bin/bash -c "kill -15 \`cat $loc/.pid\`"
+[Install]
+WantedBy=network.target
+service
+fi
+
+# start the service
+systemctl daemon-reload
+systemctl enable socksproxy
+systemctl restart socksproxy
+systemctl status --no-pager socksproxy
+
+# auto start socksproxy if offline
+cat <<'cronsocks' > /etc/socksproxy/socksproxy.sh
+#!/bin/bash
+if [[ ! "$(systemctl status --no-pager socksproxy)" =~ "running" ]]
+then
+    service socksproxy stop && service socksproxy start
+    date=$(date +"%m-%d-%Y")
+    time=$(date +"%T")
+    echo "Successfully Auto Started Socks Proxy On The Date Of $date Time $time." >> /root/socksproxy-log.txt
+elif [[ ! "$(systemctl status --no-pager apache2)" =~ "running" ]]
+then 
+    service apache2 stop && service apache2 start
+    date=$(date +"%m-%d-%Y")
+    time=$(date +"%T")
+    echo "Successfully Auto Started Socks Proxy On The Date Of $date Time $time." >> /root/apache2-log.txt
+fi
+cronsocks
+
+# chmod auto start script
+chmod -R 755 /etc/socksproxy/socksproxy.sh
+
+# run script every minute
+echo "* * * * * root /bin/bash /etc/socksproxy/socksproxy.sh >/dev/null 2>&1" > /etc/cron.d/socksproxy
+
+# Checking if openvpn folder is accidentally deleted or purged
+if [[ ! -e /etc/openvpn ]]; then
+ mkdir -p /etc/openvpn
+fi
+
+# Removing all existing openvpn server files
+rm -rf /etc/openvpn/*
+
+# Creating server.conf, ca.crt, server.crt and server.key
+cat <<'myOpenVPNconf' > /etc/openvpn/server_tcp.conf
+# OpenVPN TCP
+mode server 
+tls-server 
+port OVPNTCP
+management 127.0.0.1 Tcp_Monitor_Port
+proto tcp4
+dev tun 
+cipher AES-128-CBC
+auth SHA1
+tun-mtu-extra 32 
+tun-mtu 1400 
+mssfix 1360
+tcp-queue-limit 128
+txqueuelen 2000
+tcp-nodelay
+sndbuf 393216
+rcvbuf 393216
+push "sndbuf 393216"
+push "rcvbuf 393216"
+ca /etc/openvpn/easy-rsa/ca.crt
+cert /etc/openvpn/easy-rsa/TsholoVPN.crt
+key /etc/openvpn/easy-rsa/TsholoVPN.key
+dh /etc/openvpn/easy-rsa/dh2048.pem
+script-security 3
+ifconfig-pool-persist ipp.txt
+client-cert-not-required 
+username-as-common-name 
+auth-user-pass-verify "/etc/openvpn/script/auth_vpn.sh" via-file # 
+tmp-dir "/etc/openvpn/" # 
+server 10.7.0.0 255.255.0.0
+push "redirect-gateway def1" 
+push "dhcp-option DNS DNS1"
+push "dhcp-option DNS DNS2"
+keepalive 5 30
+persist-key 
+persist-tun
+verb 3 
+status /var/www/html/stat/tcp.txt 1
+myOpenVPNconf
+
+cat <<'myOpenVPNconf2' > /etc/openvpn/server_udp.conf
+# OpenVPN UDP
+port OVPNUDP
+management 127.0.0.1 Udp_Monitor_Port
+proto udp
+dev tun
+ca /etc/openvpn/ca.crt
+cert /etc/openvpn/TsholoVPNVPN.crt
+key /etc/openvpn/TsholoVPNVPN.key
+dh /etc/openvpn/dh2048.pem
+username-as-common-name
+client-cert-not-required
+auth-user-pass-verify "/etc/openvpn/script/auth_vpn.sh" via-file # 
+#client-connect /etc/openvpn/script/connect.sh
+#client-disconnect /etc/openvpn/script/disconnect.sh
+server 10.201.0.0 255.255.0.0
+ifconfig-pool-persist ipp.txt
+push "dhcp-option DNS DNS1"
+push "dhcp-option DNS DNS2"
+keepalive 60 180
+push "sndbuf 524288"
+push "rcvbuf 524288"
+sndbuf 524288
+rcvbuf 524288
+comp-lzo
+persist-key
+persist-tun
+status /var/www/html/stat/udp.txt
+verb 3
+script-security 3
+myOpenVPNconf2
+
 # OpenVPN Cert CA
 mkdir /etc/openvpn/easy-rsa
 cat << CA > /etc/openvpn/easy-rsa/ca.crt
@@ -361,311 +991,74 @@ An1jD+OUdrLRqjxcEoel9tm3b9h/YWbu2wIBAg==
 -----END DH PARAMETERS-----
 DH
 
+# Creating a New update message in server.conf
+cat <<'NUovpn' > /etc/openvpn/server.conf
+# New Update are now released, OpenVPN Server
+# are now running both TCP and UDP Protocol. (Both are only running on IPv4)
+# But our native server.conf are now removed and divided
+# Into two different configs base on their Protocols:
+#  * OpenVPN TCP (located at /etc/openvpn/server_tcp.conf
+#  * OpenVPN UDP (located at /etc/openvpn/server_udp.conf
+# 
+# Also other logging files like
+# status logs and server logs
+# are moved into new different file names:
+#  * OpenVPN TCP Server logs (/etc/openvpn/tcp.log)
+#  * OpenVPN UDP Server logs (/etc/openvpn/udp.log)
+#  * OpenVPN TCP Status logs (/etc/openvpn/tcp_stats.log)
+#  * OpenVPN UDP Status logs (/etc/openvpn/udp_stats.log)
+#
+# Server ports are configured base on env vars
+# executed/raised from this script (OpenVPN_TCP_Port/OpenVPN_UDP_Port)
+#
+NUovpn
+
+# setting openvpn server port and dns
+sed -i "s|OVPNTCP|$OpenVPN_TCP_Port|g" /etc/openvpn/server_tcp.conf
+sed -i "s|OVPNUDP|$OpenVPN_UDP_Port|g" /etc/openvpn/server_udp.conf
+sed -i "s|DNS1|$Dns_1|g" /etc/openvpn/server_udp.conf
+sed -i "s|DNS2|$Dns_2|g" /etc/openvpn/server_udp.conf
+sed -i "s|DNS1|$Dns_1|g" /etc/openvpn/server_tcp.conf
+sed -i "s|DNS2|$Dns_2|g" /etc/openvpn/server_tcp.conf
+sed -i "s|Tcp_Monitor_Port|$Tcp_Monitor_Port|g" /etc/openvpn/server_tcp.conf
+sed -i "s|Udp_Monitor_Port|$Udp_Monitor_Port|g" /etc/openvpn/server_udp.conf
+
 # Some workaround for OpenVZ machines for "Startup error" openvpn service
 if [[ "$(hostnamectl | grep -i Virtualization | awk '{print $2}' | head -n1)" == 'openvz' ]]; then
-sed -i 's|LimitNPROC|#LimitNPROC|g' /lib/systemd/system/openvpn*
-systemctl daemon-reload
+ sed -i 's|LimitNPROC=10|#LimitNPROC=10|g' /lib/systemd/system/openvpn*
+ systemctl daemon-reload
 fi
 
-# Setting Up Squid 
-rm -rf /etc/squid/squid.con*
-cat << mySquid > /etc/squid/squid.conf
-acl VPN dst $IPADDR/32
-http_access allow VPN
-http_access deny all 
-http_port 0.0.0.0:$Squid_Port1
-http_port 0.0.0.0:$Squid_Port2
-http_port 0.0.0.0:$Squid_Port3
-request_header_access Allow allow all 
-request_header_access Authorization allow all 
-request_header_access WWW-Authenticate allow all 
-request_header_access Proxy-Authorization allow all 
-request_header_access Proxy-Authenticate allow all 
-request_header_access Cache-Control allow all 
-request_header_access Content-Encoding allow all 
-request_header_access Content-Length allow all 
-request_header_access Content-Type allow all 
-request_header_access Date allow all 
-request_header_access Expires allow all 
-request_header_access Host allow all 
-request_header_access If-Modified-Since allow all 
-request_header_access Last-Modified allow all 
-request_header_access Location allow all 
-request_header_access Pragma allow all 
-request_header_access Accept allow all 
-request_header_access Accept-Charset allow all 
-request_header_access Accept-Encoding allow all 
-request_header_access Accept-Language allow all 
-request_header_access Content-Language allow all 
-request_header_access Mime-Version allow all 
-request_header_access Retry-After allow all 
-request_header_access Title allow all 
-request_header_access Connection allow all 
-request_header_access Proxy-Connection allow all 
-request_header_access User-Agent allow all 
-request_header_access Cookie allow all 
-request_header_access All deny all
-reply_header_access Allow allow all 
-reply_header_access Authorization allow all 
-reply_header_access WWW-Authenticate allow all 
-reply_header_access Proxy-Authorization allow all 
-reply_header_access Proxy-Authenticate allow all 
-reply_header_access Cache-Control allow all 
-reply_header_access Content-Encoding allow all 
-reply_header_access Content-Length allow all 
-reply_header_access Content-Type allow all 
-reply_header_access Date allow all 
-reply_header_access Expires allow all 
-reply_header_access Host allow all 
-reply_header_access If-Modified-Since allow all 
-reply_header_access Last-Modified allow all 
-reply_header_access Location allow all 
-reply_header_access Pragma allow all 
-reply_header_access Accept allow all 
-reply_header_access Accept-Charset allow all 
-reply_header_access Accept-Encoding allow all 
-reply_header_access Accept-Language allow all 
-reply_header_access Content-Language allow all 
-reply_header_access Mime-Version allow all 
-reply_header_access Retry-After allow all 
-reply_header_access Title allow all 
-reply_header_access Connection allow all 
-reply_header_access Proxy-Connection allow all 
-reply_header_access User-Agent allow all 
-reply_header_access Cookie allow all 
-reply_header_access All deny all
-coredump_dir /var/spool/squid
-dns_nameservers 8.8.8.8 8.8.4.4
-refresh_pattern ^ftp: 1440 20% 10080
-refresh_pattern ^gopher: 1440 0% 1440
-refresh_pattern -i (/cgi-bin/|\?) 0 0% 0
-refresh_pattern . 0 20% 4320
-visible_hostname TsholoVPN
-mySquid
+# Allow IPv4 Forwarding
+#sed -i '/net.ipv4.ip_forward.*/d' /etc/sysctl.conf
+sed -i '/net.ipv4.ip_forward.*/d' /etc/sysctl.d/*.conf
+echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/20-openvpn.conf
+sysctl --system &> /dev/null
 
-# Restarting Squid Proxy
-echo -e "Restarting proxy server..."
-systemctl restart squid
+# Iptables Rule for OpenVPN server
+cat <<'EOFipt' > /etc/openvpn/openvpn.bash
+#!/bin/bash
+PUBLIC_INET="$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)"
+IPCIDR='10.7.0.0/16'
+IPCIDR2='10.201.0.0/16'
+iptables -I FORWARD -s $IPCIDR -j ACCEPT
+iptables -I FORWARD -s $IPCIDR2 -j ACCEPT
+iptables -t nat -A POSTROUTING -o $PUBLIC_INET -j MASQUERADE
+iptables -t nat -A POSTROUTING -s $IPCIDR -o $PUBLIC_INET -j MASQUERADE
+iptables -t nat -A POSTROUTING -s $IPCIDR2 -o $PUBLIC_INET -j MASQUERADE
+EOFipt
+chmod +x /etc/openvpn/openvpn.bash
+bash /etc/openvpn/openvpn.bash
 
-# Setting System Time
-ln -fs /usr/share/zoneinfo/$MyVPS_Time /etc/localtime
-
-# Setting Terminal Message
-[[ `cat .profile` =~ Dexter ]] ||
-cat << 'intro' >> .profile
-clear
-echo -e '
-    |$$$$$$$$$$$$| |$$$$$$$$$$$$|
-         |$$|           |$$|
-         |$$|           |$$|
-         |$$|           |$$|
-         |$$|           |$$|
-         |$$|           |$$|
-         |$$|       |$$$$$$|
-         |__|       \______/  
-' && echo "
-       Welcome to ⚽TsholoVPN
-"
-intro
-
-# TCP BBR
-brloc=/etc/modules-load.d/modules.conf
-if [[ ! `cat $brloc` =~ "tcp_bbr" ]];then
-modprobe tcp_bbr
-echo tcp_bbr >> $brloc; fi
-
-# System Settings
-cat << sysctl > /etc/sysctl.d/xdcb.conf
-net.ipv4.ip_forward=1
-net.ipv4.tcp_rmem=65535 131072 4194304
-net.ipv4.tcp_wmem=65535 131072 194304
-net.ipv4.ip_default_ttl=50
-net.ipv4.tcp_congestion_control=bbr
-net.core.wmem_default=262144
-net.core.wmem_max=4194304
-net.core.rmem_default=262144
-net.core.rmem_max=4194304
-net.core.netdev_budget=600
-net.core.default_qdisc=fq
-net.ipv6.conf.all.accept_ra=2
-sysctl
-sysctl --system
-
-# Startup Script
-cat << tsholo > /etc/systemd/system/tsholo.service
-[Unit]
-Description=Tsholo Startup Script
-Wants=network.target
-After=network.target
-[Service]
-Type=oneshot
-ExecStart=/bin/bash /etc/tsholo/startup.sh
-RemainAfterExit=yes
-[Install]
-WantedBy=network.target
-tsholo
-
-chmod +x /etc/tsholo/startup.sh
-systemctl daemon-reload
-systemctl enable tsholo
-systemctl start tsholo
-
-# System OpenVPN Websocket Python
-wget -O /etc/systemd/system/ws.service https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/ws.service &> /dev/null
-wget -O /etc/systemd/system/wsssh.service https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/wsssh.service &> /dev/null
-
-wget -O /usr/local/bin/ws-openvpn https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/ws-openvpn &> /dev/null
-wget -O /usr/local/bin/ws-ssh https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/ws-ssh &> /dev/null
-
-# Set Permission
-chmod +x /usr/local/bin/ws-openvpn
-chmod +x /usr/local/bin/ws-ssh
-
-clear
-cd
-echo " "
-echo " "
-echo "WEBSOCKET SUCCESSFULLY INSTALLED!"
-
-systemctl enable ws.service
-systemctl start ws.service
-systemctl restart ws.service
-
-systemctl enable wsssh.service
-systemctl start wsssh.service
-systemctl restart wsssh.service
-
-# Setup Php 7.*
-
-$APT update
-$APT install php php-fpm php-cli php-mysql php-mcrypt libxml-parser-perl php-xml php-json php-pdo php-zip php-gd php-mbstring php-curl php-bcmath
-
-phpl=`php --ini | grep -om 1 /etc/php/*`
-phpv=`echo $phpl | cut -d/ -f4`
-
-sed -i 's/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g;/display_errors =/{s/Off/On/g};/;session.save_path =/{s/;//g}' $phpl/fpm/php.ini
-sed -i '/listen =/{s/= .*/= 127.0.0.1:9000/g}' $phpl/fpm/pool.d/www.conf
-
-# Setup WebMin
-echo "deb http://download.webmin.com/download/repository sarge contrib" > /etc/apt/sources.list.d/webmin.list
-wget http://www.webmin.com/jcameron-key.asc -qO- | apt-key add -
-$APT update
-$APT install webmin
-sed -i "s/ssl=1/ssl=0/g" /etc/webmin/miniserv.conf
-
-systemctl restart {php$phpv-fpm,webmin}
-
-# Setup Up Nginx
-cat << myNginxC > /etc/nginx/conf.d/wago-config.conf
-server {
- listen 0.0.0.0:$Nginx_Port;
- server_name localhost;
- root /var/www/openvpn;
- index index.html;
-}
-myNginxC
-rm -rf /etc/nginx/sites-*/*
-rm -rf /var/www/openvpn
-mkdir -p /var/www/openvpn
-echo "TsholoVPN Services" > /var/www/openvpn/index.html
-
-# OpenVPN Cert
-ovpnDir='/etc/openvpn'
-cert="<ca>
-$(cat $ovpnDir/ca.crt)
-</ca>"
-
-# Setup Menu
-cd /usr/local/sbin/
-cd /usr/local/sbin/
-rm -rf {accounts,base-ports,base-ports-wc,base-script,bench-network,clearcache,connections,create,create_random,create_trial,delete_expired,diagnose,edit_dropbear,edit_openssh,edit_openvpn,edit_ports,edit_squid3,edit_stunnel4,locked_list,menu,options,ram,reboot_sys,reboot_sys_auto,restart_services,server,set_multilogin_autokill,set_multilogin_autokill_lib,show_ports,speedtest,user_delete,user_details,user_details_lib,user_extend,user_list,user_lock,user_unlock}
-wget -q 'https://raw.githubusercontent.com/tjay13/AutoScriptDebian9/main/Tools/premiummenu.zip'
-unzip -qq premiummenu.zip
-rm -f premiummenu.zip
-chmod +x ./*
-dos2unix ./* &> /dev/null
-sed -i 's|/etc/squid/squid.conf|g;s|http_port|listen-address|g' ./*
-
-# Setup BadVPN
-if [[ ! `ps -A | grep badvpn` ]]; then
-if [[ ! `type -P docker` ]]; then
-curl -fsSL https://download.docker.com/linux/$ID/gpg | apt-key add - 
-add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/$ID $(lsb_release -cs) stable"
-apt update
-apt-cache policy docker-ce
-apt install docker-ce -y
-apt clean; fi
-
-export sqx=n
-[ `type -P dcomp` ] || wget "https://github.com/docker/compose/releases/download/1.24.0/docker-compose-$(uname -s)-$(uname -m)" -qO /sbin/dcomp
-chmod +x /sbin/dcomp || return
-
-wget -qO- https://github.com/X-DCB/Unix/raw/master/badvpn.yaml | dcomp -f - up -d; fi
-
-docker run -d --restart always --name openvpn-monitor \
-  --net host --cap-add NET_ADMIN \
-  -e OPENVPNMONITOR_DEFAULT_DATETIMEFORMAT="%%d/%%m/%%Y %%H:%%M:%%S" \
-  -e OPENVPNMONITOR_DEFAULT_MAPS=True \
-  -e OPENVPNMONITOR_DEFAULT_MAPSHEIGHT=500 \
-  -e OPENVPNMONITOR_DEFAULT_SITE="WaGo" \
-  -e OPENVPNMONITOR_SITES_0_ALIAS=TCP \
-  -e OPENVPNMONITOR_SITES_0_HOST=127.0.0.1 \
-  -e OPENVPNMONITOR_SITES_0_NAME=TCP \
-  -e OPENVPNMONITOR_SITES_0_PORT=$MGMT_TCP_PORT \
-  -e OPENVPNMONITOR_SITES_0_SHOWDISCONNECT=True \
-  -e OPENVPNMONITOR_SITES_1_ALIAS=UDP \
-  -e OPENVPNMONITOR_SITES_1_HOST=127.0.0.1 \
-  -e OPENVPNMONITOR_SITES_1_NAME=UDP \
-  -e OPENVPNMONITOR_SITES_1_PORT=$MGMT_UDP_PORT \
-  ruimarinho/openvpn-monitor gunicorn openvpn-monitor --bind 0.0.0.0:$Monitor_Port
-
+# Enabling IPv4 Forwarding
+echo 1 > /proc/sys/net/ipv4/ip_forward
+ 
 # Create OpenVPN Paths
-mkdir /var/www/html/status
-chmod -R 777 /var/www/html/status
-
-# Creating TCP OpenVPN Config
-cat << TeeJay01 >/etc/openvpn/server.conf
-mode server 
-tls-server 
-port 1194
-proto tcp4 
-dev tun 
-cipher AES-128-CBC
-auth SHA1
-tun-mtu-extra 32 
-tun-mtu 1400 
-mssfix 1360
-tcp-queue-limit 128
-txqueuelen 2000
-tcp-nodelay
-sndbuf 393216
-rcvbuf 393216
-push "sndbuf 393216"
-push "rcvbuf 393216"
-ca /etc/openvpn/easy-rsa/ca.crt
-cert /etc/openvpn/easy-rsa/TsholoVPN.crt
-key /etc/openvpn/easy-rsa/TsholoVPN.key
-dh /etc/openvpn/easy-rsa/dh2048.pem
-script-security 2
-ifconfig-pool-persist ipp.txt
-client-cert-not-required 
-username-as-common-name 
-auth-user-pass-verify "/etc/openvpn/script/auth_vpn.sh" via-file # 
-tmp-dir "/etc/openvpn/" # 
-server 10.200.0.0 255.255.0.0
-push "redirect-gateway def1" 
-push "dhcp-option DNS 8.8.8.8"
-push "dhcp-option DNS 8.8.4.4"
-keepalive 5 30
-persist-key 
-persist-tun
-verb 3 
-status /var/www/html/status/tcp.txt 1
-TeeJay01
+mkdir /etc/openvpn/script
+mkdir /var/www/html/stat
 
 # Auth Script
-mkdir /etc/openvpn/script
-cat <<'TeeJay02' >/etc/openvpn/script/auth_vpn.sh
+cat <<'DEE04' >/etc/openvpn/script/auth_vpn.sh
 #!/bin/bash
 username=`head -n1 $1 | tail -1`   
 password=`head -n2 $1 | tail -1`
@@ -692,35 +1085,562 @@ else
     echo "authentication failed."
 	exit 1
 fi
-TeeJay02
 
-chmod -R 777 /etc/openvpn/script
+DEE04
+ 
+# Set Permission To Script
+chmod -R 755 /etc/openvpn/script
+ 
+# Starting OpenVPN server
+systemctl start openvpn@server_tcp
+systemctl restart openvpn@server_tcp
+systemctl status --no-pager openvpn@server_tcp
+systemctl enable openvpn@server_tcp
+systemctl start openvpn@server_udp
+systemctl restart openvpn@server_udp
+systemctl status --no-pager openvpn@server_udp
+systemctl enable openvpn@server_udp
+ 
+# Set Permission To Stat
+chmod -R 755 /var/www/html/stat
 
-# Install Haproxy
-apt-get -y install haproxy
-cat > /etc/haproxy/haproxy.cfg <<-END
-frontend http-in
-        # listen 80 port
-        bind *:444
-        # set default backend
-        default_backend    backend_servers
-        # send X-Forwarded-For header
-        option             forwardfor
+# Removing Duplicate Squid config
+rm -rf /etc/squid/squid.con*
+ 
+# Creating Squid server config using cat eof tricks
+cat <<'mySquid' > /etc/squid/squid.conf
+# My Squid Proxy Server Config
+acl server dst IP-ADDRESS/32 localhost
+acl checker src 188.93.95.137
+acl ports_ port 14 22 53 21 8080 8081 8000 3128 1193 1194 440 441 442 443 80
+http_port Squid_Port1
+http_port Squid_Port2
+http_port Squid_Port3
+access_log none
+cache_log /dev/null
+logfile_rotate 0
+#http_access allow server
+#http_access allow checker
+#http_access deny all
+http_access allow all
+forwarded_for off
+via off
+#request_header_access Host allow all
+#request_header_access Content-Length allow all
+#request_header_access Content-Type allow all
+#request_header_access All deny all
+hierarchy_stoplist cgi-bin ?
+coredump_dir /var/spool/squid
+refresh_pattern ^ftp: 1440 20% 10080
+refresh_pattern ^gopher: 1440 0% 1440
+refresh_pattern -i (/cgi-bin/|\?) 0 0% 0
+refresh_pattern . 0 20% 4320
+visible_hostname TsholoVPN.com
+mySquid
 
-# define backend
-backend backend_servers
-        # balance with roundrobin
-        balance            roundrobin
-        # define backend servers
-        server             node01 127.0.0.1:1080 check
-        server             node02 127.0.0.1:8880 check
-END
+# Setting machine's IP Address inside of our Squid config(security that only allows this machine to use this proxy server)
+sed -i "s|IP-ADDRESS|$IPADDR|g" /etc/squid/squid.conf
+ 
+# Setting squid ports
+sed -i "s|Squid_Port1|$Squid_Port1|g" /etc/squid/squid.conf
+sed -i "s|Squid_Port2|$Squid_Port2|g" /etc/squid/squid.conf
+sed -i "s|Squid_Port3|$Squid_Port3|g" /etc/squid/squid.conf
 
-systemctl restart haproxy
-systemctl enable haproxy
+# Starting Proxy server
+echo -e "Restarting Squid Proxy server..."
+systemctl restart squid
+
+# NGINX CONFIGURE
+rm /home/vps/public_html -rf
+rm /etc/nginx/sites-* -rf
+rm /etc/nginx/nginx.conf -rf
+sleep 1
+mkdir -p /home/vps/public_html
+
+# Creating nginx config for our webserver
+cat <<'myNginxC' > /etc/nginx/nginx.conf
+
+user www-data;
+
+worker_processes 1;
+pid /var/run/nginx.pid;
+
+events {
+	multi_accept on;
+  worker_connections 1024;
+}
+
+http {
+	gzip on;
+	gzip_vary on;
+	gzip_comp_level 5;
+	gzip_types    text/plain application/x-javascript text/xml text/css;
+
+	autoindex on;
+  sendfile on;
+  tcp_nopush on;
+  tcp_nodelay on;
+  keepalive_timeout 65;
+  types_hash_max_size 2048;
+  server_tokens off;
+  include /etc/nginx/mime.types;
+  default_type application/octet-stream;
+  access_log /var/log/nginx/access.log;
+  error_log /var/log/nginx/error.log;
+  client_max_body_size 32M;
+	client_header_buffer_size 8m;
+	large_client_header_buffers 8 8m;
+
+	fastcgi_buffer_size 8m;
+	fastcgi_buffers 8 8m;
+
+	fastcgi_read_timeout 600;
+
+
+  include /etc/nginx/conf.d/*.conf;
+}
+myNginxC
+
+# Creating vps config for our OCS Panel
+cat <<'myvpsC' > /etc/nginx/conf.d/vps.conf
+server {
+  listen       Nginx_Port;
+  server_name  127.0.0.1 localhost;
+  access_log /var/log/nginx/vps-access.log;
+  error_log /var/log/nginx/vps-error.log error;
+  root   /home/vps/public_html;
+
+  location / {
+    index  index.html index.htm index.php;
+    try_files $uri $uri/ /index.php?$args;
+  }
+
+  location ~ \.php$ {
+    include /etc/nginx/fastcgi_params;
+    fastcgi_pass  127.0.0.1:Php_Socket;
+    fastcgi_index index.php;
+    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+  }
+}
+myvpsC
+
+# Creating monitoring config for our OpenVPN Monitoring Panel
+cat <<'myMonitoringC' > /etc/nginx/conf.d/monitoring.conf
+
+server {
+    listen Openvpn_Monitoring;
+    location / {
+        uwsgi_pass unix:///run/uwsgi/app/openvpn-monitor/socket;
+        include uwsgi_params;
+    }
+}
+myMonitoringC
+
+# Setting up our WebServer Ports and IP Addresses
+cd
+sleep 1
+
+phpl=`php --ini | grep -om 1 /etc/php/*`
+phpv=`echo $phpl | cut -d/ -f4`
+
+sed -i 's/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g;/display_errors =/{s/Off/On/g};/;session.save_path =/{s/;//g}' $phpl/fpm/php.ini
+sed -i "s|/run/php/php$phpv-fpm.sock|127.0.0.1:$Php_Socket|g" $phpl/fpm/pool.d/www.conf
+sed -i "s|Php_Socket|$Php_Socket|g" /etc/nginx/conf.d/vps.conf
+sed -i "s|Nginx_Port|$Nginx_Port|g" /etc/nginx/conf.d/vps.conf
+sed -i "s|Openvpn_Monitoring|$Openvpn_Monitoring|g" /etc/nginx/conf.d/monitoring.conf
+
+# Restarting nginx & php
+systemctl start nginx
+systemctl restart nginx
+service php7.3-fpm restart
+
+# Setting Up OpenVPN monitoring
+apt-get install -y gcc libgeoip-dev python-virtualenv python-dev geoip-database-extra uwsgi uwsgi-plugin-python
+wget -O /srv/openvpn-monitor.zip "https://www.dropbox.com/s/f3t6lsk6uao5xkv/openvpn-monitor.zip"
+cd /srv
+unzip -qq openvpn-monitor.zip
+rm -f openvpn-monitor.zip
+cd openvpn-monitor
+virtualenv .
+. bin/activate
+pip install -r requirements.txt
+
+# Updating ports for openvpn monitoring
+sed -i "s|Tcp_Monitor_Port|$Tcp_Monitor_Port|g" /srv/openvpn-monitor/openvpn-monitor.conf
+sed -i "s|Udp_Monitor_Port|$Udp_Monitor_Port|g" /srv/openvpn-monitor/openvpn-monitor.conf
+
+# Creating monitoring .ini for our OpenVPN Monitoring Panel
+cat <<'myMonitorINI' > /etc/uwsgi/apps-available/openvpn-monitor.ini
+[uwsgi]
+base = /srv
+project = openvpn-monitor
+logto = /var/log/uwsgi/app/%(project).log
+plugins = python
+chdir = %(base)/%(project)
+virtualenv = %(chdir)
+module = openvpn-monitor:application
+manage-script-name = true
+mount=/openvpn-monitor=openvpn-monitor.py
+myMonitorINI
+
+ln -s /etc/uwsgi/apps-available/openvpn-monitor.ini /etc/uwsgi/apps-enabled/
+
+# Go To Root
+cd
+
+# GeoIP For OpenVPN Monitor
+mkdir -p /var/lib/GeoIP
+wget -O /var/lib/GeoIP/GeoLite2-City.mmdb.gz "https://www.dropbox.com/s/5t2a4jd8anocnp6/geolite2-city.mmdb.gz"
+gzip -d /var/lib/GeoIP/GeoLite2-City.mmdb.gz
+
+# Now creating all of our OpenVPN Configs 
+
+# Default TCP
+cat <<Config3> /home/vps/public_html/Direct.TCP.ovpn
+# TsholoVPN VPN Premium Script Config
+# © Github.com/tjay13
+# Thanks for using this script config, Enjoy Highspeed OpenVPN Service
+
+client
+dev tun
+proto tcp
+setenv FRIENDLY_NAME "DK VPN TCP"
+remote $IPADDR $OpenVPN_TCP_Port
+http-proxy $IPADDR $Squid_Port1
+resolv-retry infinite
+remote-random
+nobind
+tun-mtu 1500
+tun-mtu-extra 32
+mssfix 1450
+persist-key
+persist-tun
+ping 15
+ping-restart 0
+ping-timer-rem
+reneg-sec 0
+remote-cert-tls server
+auth-user-pass
+#comp-lzo
+verb 3
+pull
+fast-io
+cipher AES-256-CBC
+auth SHA512
+setenv CLIENT_CERT 0
+
+<ca>
+$(cat /etc/openvpn/ca.crt)
+</ca>
+Config3
+
+# Default UDP
+cat <<Config4> /home/vps/public_html/Direct.UDP.ovpn
+# TsholoVPN VPN Premium Script Config
+# © Github.com/tjay13
+# Thanks for using this script config, Enjoy Highspeed OpenVPN Service
+
+client
+dev tun
+proto udp
+setenv FRIENDLY_NAME "DK VPN UDP"
+remote $IPADDR $OpenVPN_UDP_Port
+resolv-retry infinite
+float
+fast-io
+nobind
+persist-key
+persist-remote-ip
+persist-tun
+auth-user-pass
+auth-nocache
+comp-lzo
+redirect-gateway def1
+reneg-sec 0
+verb 1
+key-direction 1
+
+<ca>
+$(cat /etc/openvpn/ca.crt)
+</ca>
+Config4
+
+# Creating OVPN download site index.html
+cat <<'mySiteOvpn' > /home/vps/public_html/index.html
+<!DOCTYPE html>
+<html lang="en">
+
+<!-- Openvpn Config File Download site by TsholoVPN -->
+
+<head><meta charset="utf-8" /><title>VPN Config File Download</title><meta name="description" content="TsholoVPN Server -Tsholo" /><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" /><meta name="theme-color" content="#000000" /><link rel="shortcut icon" type="image/x-icon" href="https://raw.githubusercontent.com/dopekid30/-generate-sa-idnumbers/master/dk.png"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"><link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.3/css/mdb.min.css" rel="stylesheet"></head><body><div class="container justify-content-center" style="margin-top:9em;margin-bottom:5em;"><div class="col-md"><div class="view"><img src="https://openvpn.net/wp-content/uploads/openvpn.jpg" class="card-img-top"><div class="mask rgba-white-slight"></div></div><div class="card"><div class="card-body"><h5 class="card-title">TsholoVPN Config List</h5><br /><ul 
+
+class="list-group"><li class="list-group-item justify-content-between align-items-center" style="margin-bottom:1em;"><p> Openvpn Default TCP <span class="badge light-blue darken-4">Android/iOS/PC/Modem</span><br /><small> This default and cannot be use for bypassing internet.</small></p><a class="btn btn-outline-success waves-effect btn-sm" href="http://IP-ADDRESS:NGINXPORT/Direct.TCP.ovpn" style="float:right;"><i class="fa fa-download"></i> Download</a></li><li 
+
+class="list-group-item justify-content-between align-items-center" style="margin-bottom:1em;"><p> Openvpn Default UDP <span class="badge light-blue darken-4">Android/iOS/PC/Modem</span><br /><small> This default and cannot be use for bypassing internet.</small></p><a class="btn btn-outline-success waves-effect btn-sm" href="http://IP-ADDRESS:NGINXPORT/Direct.UDP.ovpn" style="float:right;"><i class="fa fa-download"></i> Download</a></li><li 
+
+</ul></div></div></div></div></body></html>
+mySiteOvpn
+ 
+# Setting template's correct name,IP address and nginx Port
+sed -i "s|NGINXPORT|$Nginx_Port|g" /home/vps/public_html/index.html
+sed -i "s|IP-ADDRESS|$IPADDR|g" /home/vps/public_html/index.html
+
+# Restarting nginx service
+systemctl restart nginx
+ 
+# Creating all .ovpn config archives
+cd /home/vps/public_html
+zip -qq -r config.zip *.ovpn
+cd
+
+chown -R www-data:www-data /home/vps/public_html
+
+# Setting SSH To Work With Panel
+mkdir /etc/sshlogin
+
+wget -O /etc/sshlogin/connection.php https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Menu/connection.php &> /dev/null
+
+sed -i "s|DatabaseHost|$DatabaseHost|g;s|DatabaseName|$DatabaseName|g;s|DatabaseUser|$DatabaseUser|g;s|DatabasePass|$DatabasePass|g" "/etc/sshlogin/connection.php"
+
+chmod -R 755 /etc/sshlogin/connection.php
+
+echo "* * * * * root /usr/bin/php /etc/sshlogin/connection.php >/dev/null 2>&1" > /etc/cron.d/connection-ssh
+echo "* * * * * root /bin/bash /etc/sshlogin/active.sh>/dev/null 2>&1"> /etc/cron.d/active-users
+echo "* * * * * root /bin/bash /etc/sshlogin/inactive.sh >/dev/null 2>&1" > /etc/cron.d/inactive-users
+
+# SSH to check online users on panel 
+cat <<'Sshonline' > /etc/sshlogin/sshusers.sh
+#!/bin/bash
+#SSH USERS 
+#BY TsholoVPN
+
+date=$(date +"%m-%d-%Y")
+time=$(date +"%T")
+
+if [ -e "/var/log/auth.log" ]; then
+        LOG="/var/log/auth.log";
+fi
+if [ -e "/var/log/secure" ]; then
+        LOG="/var/log/secure";
+fi
+
+# RESET
+>"/var/www/html/stat/ssh.txt";
+
+# SOME INFO
+echo "DROPBEAR & OPENSSH ONLINE CLIENT LIST" >> "/var/www/html/stat/ssh.txt";
+echo "UPDATED ON $date $time" >> "/var/www/html/stat/ssh.txt";
+
+# DROPBEAR
+data=( `ps aux | grep -i dropbear | awk '{print $2}'`);
+cat $LOG | grep -i dropbear | grep -i "Password auth succeeded" > /tmp/login-db.txt;
+for PID in "${data[@]}"
+do
+        cat /tmp/login-db.txt | grep "dropbear\[$PID\]" > /tmp/login-db-pid.txt;
+        NUM=`cat /tmp/login-db-pid.txt | wc -l`;
+        USER=`cat /tmp/login-db-pid.txt | awk '{print $10}' | sed 's/'\''//g'`;
+        IP=`cat /tmp/login-db-pid.txt | awk '{print $12}'`;
+        SINCE=`cat /tmp/login-db-pid.txt | awk '{print $1, $2, $3}'`;
+        if [ $NUM -eq 1 ]; then
+                echo "$USER,$IP,$PID,2022,$SINCE" >> "/var/www/html/stat/ssh.txt";
+        fi
+done
+
+ # OPENSSH
+cat $LOG | grep -i sshd | grep -i "Accepted password for" > /tmp/login-db.txt
+data=( `ps aux | grep "\[priv\]" | sort -k 72 | awk '{print $2}'`);
+for PID in "${data[@]}"
+do
+        cat /tmp/login-db.txt | grep "sshd\[$PID\]" > /tmp/login-db-pid.txt;
+        NUM=`cat /tmp/login-db-pid.txt | wc -l`;
+        USER=`cat /tmp/login-db-pid.txt | awk '{print $9}'`;
+        IP=`cat /tmp/login-db-pid.txt | awk '{print $11}'`;
+        SINCE=`cat /tmp/login-db-pid.txt | awk '{print $1, $2, $3}'`;
+        if [ $NUM -eq 1 ]; then
+                echo "$USER,$IP:8989,$PID,2022,$SINCE" >> "/var/www/html/stat/ssh.txt";
+        fi
+done
+Sshonline
+
+# Set Permissions And Start
+chmod -R 755 /etc/sshlogin/sshusers.sh
+/bin/bash /etc/sshlogin/sshusers.sh  >/dev/null 2>&1
+chmod -R 755 /var/www/html/stat/ssh.txt
+
+# Mysql ConnectionHandler
+cat <<'MysqlConnect' > /etc/sshlogin/mysql.class.php
+<?PHP
+class mysql_db
+{
+    var $username;
+    var $pwd;
+    var $database;
+    var $connection;
+	var $query_result;
+
+    function InitDB($host,$uname,$pwd,$database)
+    {
+        $this->db_host  = $host;
+        $this->username = $uname;
+        $this->pwd  = $pwd;
+        $this->database  = $database;	
+    }
+
+	function sql_query($query)
+	{
+        if(!$this->DBLogin())
+        {
+            $this->HandleError("Database login failed!");
+            return false;
+        }
+
+		if($query != "")
+		{
+			$this->query_result = $this->connection->query($query);
+		}
+		
+		if($this->query_result)
+		{
+			return $this->query_result;
+		}
+			return;
+	}
+	
+    function DBLogin()
+    {
+
+        $this->connection = new MySQLi($this->db_host,$this->username,$this->pwd);
+
+        if(!$this->connection)
+        {   
+            $this->HandleDBError("Database Login failed! Please make sure that the DB login credentials provided are correct");
+            return false;
+        }
+		
+        if(!mysqli_select_db($this->connection,$this->database))
+        {
+            $this->HandleDBError('Failed to select database: '.$this->database.' Please make sure that the database name provided is correct');
+            return false;
+        }
+        if(!$this->connection->query("SET NAMES 'UTF8'"))
+        {
+            $this->HandleDBError('Error setting utf8 encoding');
+            return false;
+        }
+        return true;
+    }
+
+    function HandleDBError($err)
+    {
+        $this->HandleError($err."\r\n ". mysqli_error($this->db_connect_id). ":");
+    }
+}
+?>
+MysqlConnect
+
+chmod -R 755 /etc/sshlogin/mysql.class.php
+
+# Update SSH Users to connected on database
+cat <<'SshDB' > /etc/sshlogin/sshauth.sh
+#!/bin/bash
+#Created by TsholoVPN
+
+if [ -e "/var/log/auth.log" ]; then
+        LOG="/var/log/auth.log";
+fi
+if [ -e "/var/log/secure" ]; then
+        LOG="/var/log/secure";
+fi
+
+>"/etc/sshlogin/cronjob_ssh_task.php";
+#ONLY PUT YOUR DATABASE
+echo "<?php" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "error_reporting(E_ERROR | E_PARSE);" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "ini_set('display_errors', '1');" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "\$DB_host = 'DatabaseHost';" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "\$DB_user = 'DatabaseUser';" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "\$DB_pass = 'DatabasePass';" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "\$DB_name = 'DatabaseName';" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "\$mysqli = new MySQLi(\$DB_host,\$DB_user,\$DB_pass,\$DB_name);" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "if (\$mysqli->connect_error) {" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "die('Error : ('. \$mysqli->connect_errno .') '. \$mysqli->connect_error);" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "}" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo 'require "/etc/sshlogin/mysql.class.php";' >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "\$db = new mysql_db();" >> "/etc/sshlogin/cronjob_ssh_task.php";
+echo "\$db->InitDB(\$DB_host,\$DB_user,\$DB_pass,\$DB_name);" >> "/etc/sshlogin/cronjob_ssh_task.php";
+#echo "\$db->sql_query(\"UPDATE users SET ssh_is_connected=0\");" >> "/etc/sshlogin/cronjob_ssh_task.php";
+
+#DROPBEAR
+data=( `ps aux | grep -i dropbear | awk '{print $2}'`);
+cat $LOG | grep -i dropbear | grep -i "Password auth succeeded" > /tmp/login-db.txt;
+for PID in "${data[@]}"
+do
+        cat /tmp/login-db.txt | grep "dropbear\[$PID\]" > /tmp/login-db-pid.txt;
+        NUM=`cat /tmp/login-db-pid.txt | wc -l`;
+        USER=`cat /tmp/login-db-pid.txt | awk '{print $10}'`;
+        IP=`cat /tmp/login-db-pid.txt | awk '{print $12}'`;
+        if [ $NUM -eq 1 ]; then
+                echo "\$db->sql_query(\"UPDATE users SET ssh_is_connected=1 WHERE user_name= $USER\");" >> "/etc/sshlogin/cronjob_ssh_task.php";
+		fi
+done
+
+#OPENSSH
+cat $LOG | grep -i sshd | grep -i "Accepted password for" > /tmp/login-db.txt
+data=( `ps aux | grep "\[priv\]" | sort -k 72 | awk '{print $2}'`);
+for PID in "${data[@]}"
+do
+        cat /tmp/login-db.txt | grep "sshd\[$PID\]" > /tmp/login-db-pid.txt;
+        NUM=`cat /tmp/login-db-pid.txt | wc -l`;
+        USER=`cat /tmp/login-db-pid.txt | awk '{print $9}'`;
+        IP=`cat /tmp/login-db-pid.txt | awk '{print $11}'`;
+        if [ $NUM -eq 1 ]; then
+                echo "\$db->sql_query(\"UPDATE users SET ssh_is_connected=1 WHERE user_name= '$USER'\");" >> "/etc/sshlogin/cronjob_ssh_task.php";
+        fi
+done
+echo "?>" >> "/etc/sshlogin/cronjob_ssh_task.php";
+SshDB
+
+sed -i "s|DatabaseHost|$DatabaseHost|g;s|DatabaseName|$DatabaseName|g;s|DatabaseUser|$DatabaseUser|g;s|DatabasePass|$DatabasePass|g" "/etc/sshlogin/sshauth.sh"
+
+chmod -R 755 /etc/sshlogin/sshauth.sh
+/bin/bash /etc/sshlogin/sshauth.sh  >/dev/null 2>&1
+chmod -R 755 /etc/sshlogin/cronjob_ssh_task.php
+
+# Check online ssh users on panel every minute 
+cat <<'Loop' > /etc/sshlogin/loop.sh
+#!/bin/bash
+# Program that checks if SSH users is online
+echo $$ > .pid
+while :; do
+  /bin/bash /etc/sshlogin/sshauth.sh
+  /usr/bin/php /etc/sshlogin/cronjob_ssh_task.php
+  sleep 1
+done
+Loop
+
+# Creating a service for panel
+cat << Loopservice> /etc/systemd/system/loop.service
+[Unit]
+Description=SSH Task Loop
+After=multi-user.target
+[Service]
+User=root
+Type=simple
+WorkingDirectory=/etc/sshlogin/
+ExecStart=/bin/bash loop.sh
+ExecStop=/bin/bash -c "kill -15 `cat /etc/sshlogin/.pid`"
+[Install]
+WantedBy=multi-user.target
+Loopservice
+
+# start the service
+systemctl daemon-reload
+systemctl enable loop
+systemctl restart loop
+systemctl status --no-pager loop
 
 # Fixing Multilogin Script
-cat <<'Multilogin' >/usr/local/sbin/set_multilogin_autokill_lib
+cat <<'Multilogin' > /etc/sshlogin/set_multilogin_autokill_lib
 #!/bin/bash
 clear
 MAX=1
@@ -732,6 +1652,7 @@ if [ -e "/var/log/secure" ]; then
         OS=2;
         LOG="/var/log/secure";
 fi
+
 if [ $OS -eq 1 ]; then
     service ssh restart > /dev/null 2>&1;
 fi
@@ -743,6 +1664,7 @@ fi
 if [[ ${1+x} ]]; then
         MAX=$1;
 fi
+
         cat /etc/passwd | grep "/home/" | cut -d":" -f1 > /root/user.txt
         username1=( `cat "/root/user.txt" `);
         i="0";
@@ -816,134 +1738,262 @@ fi
         fi
 Multilogin
 
-systemctl enable openvpn@server
-systemctl start openvpn@server
+chmod -R 755 /etc/sshlogin/set_multilogin_autokill_lib
 
-docker run -d --restart always --name v2ray --net host --cap-add NET_ADMIN \
- -v /etc/v2ray:/etc/v2ray \
- v2fly/v2fly-core
-docker run -d --restart always --name v2ray-none --net host --cap-add NET_ADMIN \
- -v /etc/v2ray:/etc/v2ray \
- -v /etc/v2ray/none.json:/etc/v2ray/config.json \
- v2fly/v2fly-core
-docker run -d --restart always --name v2ray-vless --net host --cap-add NET_ADMIN \
- -v /etc/v2ray:/etc/v2ray \
- -v /etc/v2ray/vless.json:/etc/v2ray/config.json \
- v2fly/v2fly-core
-docker run -d --restart always --name v2ray-vnone --net host --cap-add NET_ADMIN \
- -v /etc/v2ray:/etc/v2ray \
- -v /etc/v2ray/vnone.json:/etc/v2ray/config.json \
- v2fly/v2fly-core
+# Webmin Configuration
+sed -i '$ i\tsholo: acl adsl-client ajaxterm apache at backup-config bacula-backup bandwidth bind8 burner change-user cluster-copy cluster-cron cluster-passwd cluster-shell cluster-software cluster-useradmin cluster-usermin cluster-webmin cpan cron custom dfsadmin dhcpd dovecot exim exports fail2ban fdisk fetchmail file filemin filter firewall firewalld fsdump grub heartbeat htaccess-htpasswd idmapd inetd init inittab ipfilter ipfw ipsec iscsi-client iscsi-server iscsi-target iscsi-tgtd jabber krb5 ldap-client ldap-server ldap-useradmin logrotate lpadmin lvm mailboxes mailcap man mon mount mysql net nis openslp package-updates pam pap passwd phpini postfix postgresql ppp-client pptp-client pptp-server proc procmail proftpd qmailadmin quota raid samba sarg sendmail servers shell shorewall shorewall6 smart-status smf software spam squid sshd status stunnel syslog-ng syslog system-status tcpwrappers telnet time tunnel updown useradmin usermin vgetty webalizer webmin webmincron webminlog wuftpd xinetd' /etc/webmin/webmin.acl
+sed -i '$ i\tsholo:x:0' /etc/webmin/miniserv.users
+/usr/share/webmin/changepass.pl /etc/webmin tsholo 27422
 
-# Setup Apache
-sed -i "s|Listen 80|Listen $Apache_Port|g" /etc/apache2/ports.conf
-service apache2 restart
-a2enmod proxy_fcgi setenvif
-a2enconf php$phpv-fpm
-systemctl reload apache2 #activate
+# Some Cron Job
+echo "* * * * * root /bin/bash /etc/sshlogin/set_multilogin_autokill_lib 1 >/dev/null 2>&1" >> "/etc/cron.d/set_multilogin_autokill_lib"
+echo "* * * * * root /bin/bash /etc/sshlogin/sshusers.sh >/dev/null 2>&1" >> "/etc/cron.d/sshlogin"
+echo "* * * * * root /bin/bash /usr/local/sbin/TsholoVPN-user-delete-expired &> /dev/null" >> "/etc/cron.d/user-delete-expired"
 
-# Set Stat Permissions
-chmod 777 /var/www/html/status/tcp.txt
+# Some Settings
+sed -i "s|#SystemMaxUse=|SystemMaxUse=10M|g" /etc/systemd/journald.conf
+sed -i "s|#SystemMaxFileSize=|SystemMaxFileSize=1M|g" /etc/systemd/journald.conf
+systemctl restart systemd-journald
 
-apt-get -y install expect mysql-server lsb-release apt-transport-https ca-certificates lsb-release libdbi-perl libecap3
+# Creating startup 1 script using cat eof tricks
+cat <<'TsholoVPNz' > /etc/TsholoVPNstartup
+#!/bin/sh
 
-# Mysql Secure Installation
-so1=$(expect -c "
-spawn mysql_secure_installation; sleep 3
-expect \"\";  sleep 3; send \"\r\"
-expect \"\";  sleep 3; send \"Y\r\"
-expect \"\";  sleep 3; send \"$DatabasePass\r\"
-expect \"\";  sleep 3; send \"$DatabasePass\r\"
-expect \"\";  sleep 3; send \"Y\r\"
-expect \"\";  sleep 3; send \"n\r\"
-expect \"\";  sleep 3; send \"Y\r\"
-expect \"\";  sleep 3; send \"Y\r\"
-expect eof; ")
-echo "$so1"
+# Firewall Protection ( Torrent, Brute Force, Port Scanning )
+iptables -A FORWARD -m string --string "get_peers" --algo bm -j DROP
+iptables -A FORWARD -m string --string "announce_peer" --algo bm -j DROP
+iptables -A FORWARD -m string --string "find_node" --algo bm -j DROP
+iptables -A FORWARD -m string --algo bm --string "BitTorrent" -j DROP
+iptables -A FORWARD -m string --algo bm --string "BitTorrent protocol" -j DROP
+iptables -A FORWARD -m string --algo bm --string "peer_id=" -j DROP
+iptables -A FORWARD -m string --algo bm --string ".torrent" -j DROP
+iptables -A FORWARD -m string --algo bm --string "announce.php?passkey=" -j DROP
+iptables -A FORWARD -m string --algo bm --string "torrent" -j DROP
+iptables -A FORWARD -m string --algo bm --string "announce" -j DROP
+iptables -A FORWARD -m string --algo bm --string "info_hash" -j DROP
 
-mkdir /usr/sbin/kpn
-wget -O /usr/sbin/kpn/connection.php https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Menu/connection.php &> /dev/null
-chmod -R 755 /usr/sbin/kpn/connection.php
+# Setting server local time
+ln -fs /usr/share/zoneinfo/MyTimeZone /etc/localtime
 
-echo "* * * * * root /usr/bin/php /usr/sbin/kpn/connection.php >/dev/null 2>&1" > /etc/cron.d/connection-ssh
-echo "* * * * * root /bin/bash /usr/sbin/kpn/active.sh>/dev/null 2>&1"> /etc/cron.d/active-users
-echo "* * * * * root /bin/bash /usr/sbin/kpn/inactive.sh >/dev/null 2>&1" > /etc/cron.d/inactive-users
+# Prevent DOS-like UI when installing using APT (Disabling APT interactive dialog)
+export DEBIAN_FRONTEND=noninteractive
 
-clear
-echo " "
-echo " "
-echo "SSH PHP SUCCESSFULLY INSTALLED!"
+# Allowing ALL TCP ports for our machine (Simple workaround for policy-based VPS)
+iptables -A INPUT -s $(wget -4qO- http://ipinfo.io/ip) -p tcp -m multiport --dport 1:65535 -j ACCEPT
 
-# Cloudflare Domain
-echo "$Cloudflare_Domain" >> /root/domain
+# Allowing OpenVPN to Forward traffic
+/bin/bash /etc/openvpn/openvpn.bash
 
-# Setup Cron
-cat << cron > /etc/cron.d/$Filename_alias
-* * * * * root php -q /etc/$Filename_alias.cron.php
-* * * * * root bash /etc/openvpn/active.sh
-* * * * * root bash /etc/openvpn/inactive.sh
-cron
-echo -e "0 4 * * * root reboot" > /etc/cron.d/b_reboot_job
-echo -e "* * * * *  root /usr/local/sbin/set_multilogin_autokill_lib 1" >> "/etc/cron.d/set_multilogin_autokill_lib"
-systemctl restart cron
-systemctl enable cron
+# Disable IpV6
+echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
 
-# Script Info
-clear
+# add DNS server ipv4
+echo "nameserver DNS1" > /etc/resolv.conf
+echo "nameserver DNS2" >> /etc/resolv.conf
 
-cat << logs | tee -a ~/log-install.txt
-INSTALLATION HAS BEEN COMPLETED!!
-============================-AUTOSCRIPT WAGO-G-============================
----------------------------------------------------------------------------
-   >>> Service & Port
-   - OpenSSH                 : $SSH_Port1, $SSH_Port2 
-   - OpenVPN                 : TCP $OpenVPN_TCP_Port UDP $OpenVPN_UDP_Port
-   - Stunnel/SSL             : $Stunnel_Port1, $Stunnel_Port2, $Stunnel_Port3
-   - Dropbear                : $Dropbear_Port1, $Dropbear_Port2
-   - Squid Proxy             : $Squid_Port1, $Squid_Port2 , $Squid_Port3
-   - Badvpn                  : 7300
-   - Nginx                   : $Nginx_Port
-   - Apache                  : $Apache_Port
-   - Socks                   : $WsPort
-   - V2RAY Vmess TLS         : $V2ray_Port1
-   - V2RAY Vmess None TLS    : $V2ray_Port2
-   - V2RAY Vless TLS         : $V2ray_Port3
-   - V2RAY Vless None TLS    : $V2ray_Port4
-   >>> Server Information & Features
-   - Timezone                : Africa/Johannesburg (GMT +2)
-   - Fail2Ban                : [ON]
-   - IPtables                : [ON]
-   - Auto-Reboot             : [ON]
-   - IPv6                    : [OFF]
-   - Webmin Login Page       : http://$IPADDR:10000/
-   - OpenVPN Monitor         : http://$IPADDR:$Monitor_Port/
----------------------------------------------------------------------------
-===========================================================================
-logs
+######                 WARNING                           
+###### MAKE SURE YOU ONLY PUT [FULLY WORKING APPS] 
+######          WHOLE SCRIPT WILL COLLAPSE         
+######         IF YOU ADD NOT WORKING SCRIPT       
+######    TEST IT BEFORE ADD YOUR COMMAND HERE     
+######              by: TsholoVPN
+TsholoVPNz
 
-# Clearing Logs
-rm -rf /root/.bash_history && history -c && echo '' > /var/log/syslog
-rm -f *.sh
+sed -i "s|MyTimeZone|$MyVPS_Time|g" /etc/TsholoVPNstartup
+sed -i "s|DNS1|$Dns_1|g" /etc/TsholoVPNstartup
+sed -i "s|DNS2|$Dns_2|g" /etc/TsholoVPNstartup
+rm -rf /etc/sysctl.d/99*
 
+ # Setting our startup script to run every machine boots 
+cat <<'TsholoVPNx' > /etc/systemd/system/TsholoVPNstartup.service
+[Unit] 
+Description=/etc/TsholoVPNstartup
+ConditionPathExists=/etc/TsholoVPNstartup
+
+[Service] 
+Type=forking 
+ExecStart=/etc/TsholoVPNstartup start 
+TimeoutSec=0
+StandardOutput=tty 
+RemainAfterExit=yes 
+SysVStartPriority=99 
+
+[Install] 
+WantedBy=multi-user.target
+TsholoVPNx
+
+chmod +x /etc/TsholoVPNstartup
+systemctl enable TsholoVPNstartup
+systemctl start TsholoVPNstartup
 cd
-exit 0
 
-# Install Routes
-ipadd=$(wget -qO- ipv4.icanhazip.com);
-sysctl -p
-iptables -F; iptables -X; iptables -Z
-iptables -t nat -A POSTROUTING -s 10.200.0.0/24 -o eth0 -j MASQUERADE
-iptables -t nat -A POSTROUTING -s 10.200.0.0/24 -j SNAT --to $ipadd
-iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-iptables -A FORWARD -s 10.200.0.0/24 -j ACCEPT
-iptables -A FORWARD -j REJECT
-iptables -A INPUT -p tcp --dport 1194 -j ACCEPT
-iptables -A INPUT -p tcp --dport 8080 -j ACCEPT
-iptables -A INPUT -p tcp --dport 81 -j ACCEPT
-iptables -A INPUT -p tcp --dport 80 -j ACCEPT
-iptables -A OUTPUT -p tcp --destination-port 25 -j DROP
-iptables -A OUTPUT -p udp --destination-port 25 -j DROP
-iptables -A OUTPUT -p tcp --destination-port 465 -j DROP
-iptables -A OUTPUT -p udp --destination-port 465 -j DROP
-iptables -A OUTPUT -p tcp --destination-port 587 -j DROP
-iptables -A OUTPUT -p udp --destination-port 587 -j DROP
+# Pull BadVPN Binary 64bit or 32bit
+if [ "$(getconf LONG_BIT)" == "64" ]; then
+ wget -O /usr/bin/badvpn-udpgw "https://www.dropbox.com/s/jo6qznzwbsf1xhi/badvpn-udpgw64"
+else
+ wget -O /usr/bin/badvpn-udpgw "https://www.dropbox.com/s/8gemt9c6k1fph26/badvpn-udpgw"
+fi
+
+# Change Permission to make it Executable
+chmod +x /usr/bin/badvpn-udpgw
+ 
+# Setting our startup script for badvpn
+cat <<'TsholoVPNb' > /etc/systemd/system/badvpn.service
+[Unit]
+Description=badvpn tun2socks service
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/badvpn-udpgw --listen-addr 127.0.0.1:7300 --max-clients 1000 --max-connections-for-client 10
+
+[Install]
+WantedBy=multi-user.target
+TsholoVPNb
+
+systemctl enable badvpn
+systemctl start badvpn
+
+# TCP BBR
+brloc=/etc/modules-load.d/modules.conf
+if [[ ! `cat $brloc` =~ "tcp_bbr" ]];then
+modprobe tcp_bbr
+echo tcp_bbr >> $brloc; fi
+
+#Tweak for IPV4 TCP/UDP speed and maximize capability function Status: OFF
+cd
+mkdir -p /etc/TsholoVPN-script/others
+echo "off" > /etc/TsholoVPN-script/others/tcptweaks
+echo '' > /etc/sysctl.conf &> /dev/null
+echo "# Kernel sysctl configuration file for Red Hat Linux
+#
+# For binary values, 0 is disabled, 1 is enabled.  See sysctl(8) and
+# sysctl.conf(5) for more details.
+#
+# Use '/sbin/sysctl -a' to list all possible parameters.
+# Controls IP packet forwarding
+net.ipv4.conf.default.rp_filter = 1
+net.ipv4.conf.default.accept_source_route = 0
+kernel.sysrq = 0
+kernel.core_uses_pid = 1
+net.ipv4.tcp_syncookies = 1
+kernel.msgmnb = 65536
+kernel.msgmax = 65536
+kernel.shmmax = 68719476736
+kernel.shmall = 4294967296
+net.ipv4.ip_forward = 1
+fs.file-max = 65535
+net.core.rmem_default = 262144
+net.core.rmem_max = 262144
+net.core.wmem_default = 262144
+net.core.wmem_max = 262144
+net.ipv4.tcp_rmem = 4096 87380 8388608
+net.ipv4.tcp_wmem = 4096 65536 8388608
+net.ipv4.tcp_mem = 4096 4096 4096
+net.ipv4.tcp_low_latency = 1
+net.core.netdev_max_backlog = 4000
+net.ipv4.ip_local_port_range = 1024 65000
+net.ipv4.tcp_max_syn_backlog = 16384"| sudo tee /etc/sysctl.conf
+sysctl -p &> /dev/null
+
+# V2RAY
+wget -O /usr/local/v2-ui-linux.tar.gz "https://www.dropbox.com/s/gg3043jt5rumift/v2-ui-linux.tar.gz"
+cd /usr/local/
+tar zxvf v2-ui-linux.tar.gz
+rm v2-ui-linux.tar.gz -f
+cd v2-ui
+chmod +x v2-ui bin/v2ray-v2-ui bin/v2ctl
+cp -f v2-ui.service /etc/systemd/system/
+cd
+
+# Start V2-ui 
+systemctl daemon-reload
+systemctl start v2-ui
+systemctl enable v2-ui
+systemctl status --no-pager v2-ui
+
+# download script
+cd /usr/local/bin
+wget -O premium-script.tar.gz "https://www.dropbox.com/s/1ex9tr7hzoh53ln/premium-script.tar.gz"
+tar -xvf premium-script.tar.gz
+rm -f premium-script.tar.gz
+cp /usr/local/bin/menu /usr/bin/menu
+cp /usr/local/bin/menu /usr/bin/Menu
+chmod +x /usr/bin/Menu
+chmod +x /usr/bin/menu
+chmod +x ./*
+cd
+
+clear
+cd
+echo " "
+echo " "
+echo "PREMIUM SCRIPT SUCCESSFULLY INSTALLED!"
+echo "SCRIPT BY TsholoVPN"
+echo "PLEASE WAIT..."
+echo " "
+
+# Finishing
+chown -R www-data:www-data /home/vps/public_html
+
+clear
+echo ""
+echo " INSTALLATION FINISH! "
+echo ""
+echo ""
+echo "Server Information: " | tee -a log-install.txt | lolcat
+echo "   • Timezone       : $MyVPS_Time "  | tee -a log-install.txt | lolcat
+echo "   • Fail2Ban       : [ON]"  | tee -a log-install.txt | lolcat
+echo "   • IPtables       : [ON]"  | tee -a log-install.txt | lolcat
+echo "   • Auto-Reboot    : [OFF] See menu to [ON] "  | tee -a log-install.txt | lolcat
+echo "   • TCP Speed Tweak: [OFF] See menu to [ON]" | tee -a log-install.txt | lolcat
+echo "   • Squid Cache    : [ON]" | tee -a log-install.txt | lolcat
+echo "   • IPv6           : [OFF]"  | tee -a log-install.txt  | lolcat
+
+echo " "| tee -a log-install.txt | lolcat
+echo "Automated Features:"| tee -a log-install.txt | lolcat
+echo "   • Auto delete expired user account"| tee -a log-install.txt | lolcat
+echo "   • Auto restart server "| tee -a log-install.txt | lolcat
+echo "   • Auto disconnect multilogin users [Openvpn not included]."| tee -a log-install.txt | lolcat
+echo "   • Auto configure firewall every reboot[Protection for torrent and etc..]"| tee -a log-install.txt | lolcat
+echo "   • Auto updated firewall[if port changed firewall will adapt your new port]"| tee -a log-install.txt | lolcat
+
+echo " " | tee -a log-install.txt | lolcat
+echo "Services & Port Information:" | tee -a log-install.txt | lolcat
+echo "   • OpenVPN              : [ON] : TCP: $OpenVPN_TCP_Port | UDP: $OpenVPN_UDP_Port" | tee -a log-install.txt | lolcat
+echo "   • Dropbear             : [ON] : $Dropbear_Port1 | $Dropbear_Port2 " | tee -a log-install.txt | lolcat
+echo "   • Squid Proxy          : [ON] : $Squid_Port1 | $Squid_Port2 |$Squid_Port3 | limit to IP Server" | tee -a log-install.txt | lolcat
+echo "   • SSL through Dropbear : [ON] : $Stunnel_Port1  " | tee -a log-install.txt | lolcat
+echo "   • SSL through OpenSSH  : [ON] : $Stunnel_Port2" | tee -a log-install.txt | lolcat
+echo "   • SSL through Openvpn  : [ON] : $Stunnel_Port3 " | tee -a log-install.txt | lolcat
+echo "   • SSL through Websocket: [ON] : $Stunnel_Port4 " | tee -a log-install.txt | lolcat
+echo "   • Websocket Socks Proxy: [ON] : $WsPort " | tee -a log-install.txt | lolcat
+echo "   • BADVPN               : [ON] : 7300 " | tee -a log-install.txt | lolcat
+echo "   • Additional SSHD Port : [ON] : $SSH_Port2" | tee -a log-install.txt | lolcat
+echo "   • OCS Panel            : [ON] : http://$IPADDR:$Nginx_Port" | tee -a log-install.txt | lolcat
+echo "   • Openvpn Monitoring   : [ON] : http://$IPADDR:$Openvpn_Monitoring" | tee -a log-install.txt | lolcat
+echo "   • V2ray Panel          : [ON] : http://$IPADDR:65432 " | tee -a log-install.txt | lolcat
+
+echo "" | tee -a log-install.txt | lolcat
+echo "Notes:" | tee -a log-install.txt | lolcat
+echo "  ★ Torrent Protection [ add newest torrent port] " | tee -a log-install.txt | lolcat
+echo "  ★ Port Scanner Basic Protection  " | tee -a log-install.txt | lolcat
+echo "  ★ Brute Force Attack Basic Protection  " | tee -a log-install.txt | lolcat
+echo "  ★ All ports can be edited in Edit Menu. " | tee -a log-install.txt | lolcat
+echo "  ★ Multi-login Limit customize per user [see menu]. " | tee -a log-install.txt | lolcat
+echo "  ★ To display list of commands:  " [ menu ] or [ menu dk ] "" | tee -a log-install.txt | lolcat
+echo "" | tee -a log-install.txt | lolcat
+echo "  ★ Other concern and questions of these auto-scripts?" | tee -a log-install.txt | lolcat
+echo "    Direct Messege : https://t.me/TsholoVPN" | tee -a log-install.txt | lolcat
+echo ""
+read -p " Press enter.."
+
+clear
+echo ""
+echo ""
+figlet TsholoVPN Script -c | lolcat
+echo ""
+echo "       Installation Complete! System need to reboot to apply all changes! "
+read -p "                      Press Enter to reboot..."
+reboot
