@@ -63,9 +63,9 @@ MyVPS_Time='Africa/Johannesburg'
 
 # Database Info for panel
 DatabaseHost='185.61.137.174';
-DatabaseName='vpnquest1_tsholovpn';
-DatabaseUser='vpnquest1_tsholovpn';
-DatabasePass='Pass1234Five@';
+DatabaseName='vpnquest1_dbase';
+DatabaseUser='vpnquest1_user';
+DatabasePass='s+(WT#r4CaB&';
 DatabasePort='3306';
 
 #########################################################
@@ -1064,9 +1064,9 @@ password=`head -n2 $1 | tail -1`
 tm="$(date +%s)"
 dt="$(date +'%Y-%m-%d %H:%M:%S')"
 HOST='185.61.137.174'
-USER='vpnquest1_tsholovpn'
-PASS='Pass1234Five@'
-DB='vpnquest1_tsholovpn'
+USER='vpnquest1_user'
+PASS='s+(WT#r4CaB&'
+DB='vpnquest1_dbase'
 # PREMIUM
 PRE="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.is_duration > 0"
 # VIP
@@ -1159,9 +1159,9 @@ ini_set('display_errors', '1');
 //include('config.php');
 
 $DB_host = '185.61.137.174';
-$DB_user = 'vpnquest1_tsholovpn';
-$DB_pass = 'Pass1234Five@';
-$DB_name = 'vpnquest1_tsholovpn';
+$DB_user = 'vpnquest1_user';
+$DB_pass = 's+(WT#r4CaB&';
+$DB_name = 'vpnquest1_dbase';
 
 $mysqli = new MySQLi($DB_host,$DB_user,$DB_pass,$DB_name);
 if ($mysqli->connect_error) {
