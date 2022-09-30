@@ -36,8 +36,7 @@ Squid_Port2='8080'
 Squid_Port3='9005'
 
 # Python Vars for deb9
-Python_Version=3.6.9
-Python_Url=https://www.python.org/ftp/python/$Python_Version/Python-$Python_Version.tar.xz
+Python_Url=https://github.com/tjay13/AutoScriptDebian9/blob/main/Tools/Python-3.6.9.tar.xz?raw=true
 
 # Python Socks Proxy
 WsPort='80'  # for port 8080 change cloudflare SSL/TLS to full
@@ -64,9 +63,9 @@ MyVPS_Time='Africa/Johannesburg'
 
 # Database Info for panel
 DatabaseHost='185.61.137.174';
-DatabaseName='vpnquest1_dbase';
-DatabaseUser='vpnquest1_user';
-DatabasePass='s+(WT#r4CaB&';
+DatabaseName='vpnquest1_tsholovpn';
+DatabaseUser='vpnquest1_tsholovpn';
+DatabasePass='Pass1234Five@';
 DatabasePort='3306';
 
 #########################################################
@@ -184,7 +183,7 @@ systemctl start sslh
 systemctl restart sslh
 
 # Install Webmin
-wget https://www.dropbox.com/s/0cusbpgvyit6oke/webmin_1.801_all.deb
+wget https://github.com/tjay13/AutoScriptDebian9/blob/main/Tools/webmin_1.801_all.deb?raw=true
 dpkg --install webmin_1.801_all.deb
 sleep 1
 rm -rf webmin_1.801_all.deb
@@ -1065,9 +1064,9 @@ password=`head -n2 $1 | tail -1`
 tm="$(date +%s)"
 dt="$(date +'%Y-%m-%d %H:%M:%S')"
 HOST='185.61.137.174'
-USER='vpnquest1_user'
-PASS='s+(WT#r4CaB&'
-DB='vpnquest1_dbase'
+USER='vpnquest1_tsholovpn'
+PASS='Pass1234Five@'
+DB='vpnquest1_tsholovpn'
 # PREMIUM
 PRE="user.username='$username' AND user.auth_vpn=md5('$password') AND user.confirmcode='y' AND user.status='live' AND user.is_freeze=1 AND user.is_active=1 AND user.is_ban=1 AND user.is_suspend=1 AND user.is_duration > 0"
 # VIP
@@ -1150,255 +1149,152 @@ sed -i "s|Squid_Port3|$Squid_Port3|g" /etc/squid/squid.conf
 echo -e "Restarting Squid Proxy server..."
 systemctl restart squid
 
-# NGINX CONFIGURE
-rm /home/vps/public_html -rf
-rm /etc/nginx/sites-* -rf
-rm /etc/nginx/nginx.conf -rf
-sleep 1
-mkdir -p /home/vps/public_html
-
-# Creating nginx config for our webserver
-cat <<'myNginxC' > /etc/nginx/nginx.conf
-
-user www-data;
-
-worker_processes 1;
-pid /var/run/nginx.pid;
-
-events {
-	multi_accept on;
-  worker_connections 1024;
-}
-
-http {
-	gzip on;
-	gzip_vary on;
-	gzip_comp_level 5;
-	gzip_types    text/plain application/x-javascript text/xml text/css;
-
-	autoindex on;
-  sendfile on;
-  tcp_nopush on;
-  tcp_nodelay on;
-  keepalive_timeout 65;
-  types_hash_max_size 2048;
-  server_tokens off;
-  include /etc/nginx/mime.types;
-  default_type application/octet-stream;
-  access_log /var/log/nginx/access.log;
-  error_log /var/log/nginx/error.log;
-  client_max_body_size 32M;
-	client_header_buffer_size 8m;
-	large_client_header_buffers 8 8m;
-
-	fastcgi_buffer_size 8m;
-	fastcgi_buffers 8 8m;
-
-	fastcgi_read_timeout 600;
-
-
-  include /etc/nginx/conf.d/*.conf;
-}
-myNginxC
-
-# Creating vps config for our OCS Panel
-cat <<'myvpsC' > /etc/nginx/conf.d/vps.conf
-server {
-  listen       Nginx_Port;
-  server_name  127.0.0.1 localhost;
-  access_log /var/log/nginx/vps-access.log;
-  error_log /var/log/nginx/vps-error.log error;
-  root   /home/vps/public_html;
-
-  location / {
-    index  index.html index.htm index.php;
-    try_files $uri $uri/ /index.php?$args;
-  }
-
-  location ~ \.php$ {
-    include /etc/nginx/fastcgi_params;
-    fastcgi_pass  127.0.0.1:Php_Socket;
-    fastcgi_index index.php;
-    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-  }
-}
-myvpsC
-
-# Creating monitoring config for our OpenVPN Monitoring Panel
-cat <<'myMonitoringC' > /etc/nginx/conf.d/monitoring.conf
-
-server {
-    listen Openvpn_Monitoring;
-    location / {
-        uwsgi_pass unix:///run/uwsgi/app/openvpn-monitor/socket;
-        include uwsgi_params;
-    }
-}
-myMonitoringC
-
-# Setting up our WebServer Ports and IP Addresses
-cd
-sleep 1
-
-phpl=`php --ini | grep -om 1 /etc/php/*`
-phpv=`echo $phpl | cut -d/ -f4`
-
-sed -i 's/;cgi.fix_pathinfo=1/cgi.fix_pathinfo=0/g;/display_errors =/{s/Off/On/g};/;session.save_path =/{s/;//g}' $phpl/fpm/php.ini
-sed -i "s|/run/php/php$phpv-fpm.sock|127.0.0.1:$Php_Socket|g" $phpl/fpm/pool.d/www.conf
-sed -i "s|Php_Socket|$Php_Socket|g" /etc/nginx/conf.d/vps.conf
-sed -i "s|Nginx_Port|$Nginx_Port|g" /etc/nginx/conf.d/vps.conf
-sed -i "s|Openvpn_Monitoring|$Openvpn_Monitoring|g" /etc/nginx/conf.d/monitoring.conf
-
-# Restarting nginx & php
-systemctl start nginx
-systemctl restart nginx
-service php7.3-fpm restart
-
-# Setting Up OpenVPN monitoring
-apt-get install -y gcc libgeoip-dev python-virtualenv python-dev geoip-database-extra uwsgi uwsgi-plugin-python
-wget -O /srv/openvpn-monitor.zip "https://www.dropbox.com/s/f3t6lsk6uao5xkv/openvpn-monitor.zip"
-cd /srv
-unzip -qq openvpn-monitor.zip
-rm -f openvpn-monitor.zip
-cd openvpn-monitor
-virtualenv .
-. bin/activate
-pip install -r requirements.txt
-
-# Updating ports for openvpn monitoring
-sed -i "s|Tcp_Monitor_Port|$Tcp_Monitor_Port|g" /srv/openvpn-monitor/openvpn-monitor.conf
-sed -i "s|Udp_Monitor_Port|$Udp_Monitor_Port|g" /srv/openvpn-monitor/openvpn-monitor.conf
-
-# Creating monitoring .ini for our OpenVPN Monitoring Panel
-cat <<'myMonitorINI' > /etc/uwsgi/apps-available/openvpn-monitor.ini
-[uwsgi]
-base = /srv
-project = openvpn-monitor
-logto = /var/log/uwsgi/app/%(project).log
-plugins = python
-chdir = %(base)/%(project)
-virtualenv = %(chdir)
-module = openvpn-monitor:application
-manage-script-name = true
-mount=/openvpn-monitor=openvpn-monitor.py
-myMonitorINI
-
-ln -s /etc/uwsgi/apps-available/openvpn-monitor.ini /etc/uwsgi/apps-enabled/
-
-# Go To Root
-cd
-
-# GeoIP For OpenVPN Monitor
-mkdir -p /var/lib/GeoIP
-wget -O /var/lib/GeoIP/GeoLite2-City.mmdb.gz "https://www.dropbox.com/s/5t2a4jd8anocnp6/geolite2-city.mmdb.gz"
-gzip -d /var/lib/GeoIP/GeoLite2-City.mmdb.gz
-
-# Now creating all of our OpenVPN Configs 
-
-# Default TCP
-cat <<Config3> /home/vps/public_html/Direct.TCP.ovpn
-# TsholoVPN VPN Premium Script Config
-# © Github.com/tjay13
-# Thanks for using this script config, Enjoy Highspeed OpenVPN Service
-
-client
-dev tun
-proto tcp
-setenv FRIENDLY_NAME "DK VPN TCP"
-remote $IPADDR $OpenVPN_TCP_Port
-http-proxy $IPADDR $Squid_Port1
-resolv-retry infinite
-remote-random
-nobind
-tun-mtu 1500
-tun-mtu-extra 32
-mssfix 1450
-persist-key
-persist-tun
-ping 15
-ping-restart 0
-ping-timer-rem
-reneg-sec 0
-remote-cert-tls server
-auth-user-pass
-#comp-lzo
-verb 3
-pull
-fast-io
-cipher AES-256-CBC
-auth SHA512
-setenv CLIENT_CERT 0
-
-<ca>
-$(cat /etc/openvpn/ca.crt)
-</ca>
-Config3
-
-# Default UDP
-cat <<Config4> /home/vps/public_html/Direct.UDP.ovpn
-# TsholoVPN VPN Premium Script Config
-# © Github.com/tjay13
-# Thanks for using this script config, Enjoy Highspeed OpenVPN Service
-
-client
-dev tun
-proto udp
-setenv FRIENDLY_NAME "DK VPN UDP"
-remote $IPADDR $OpenVPN_UDP_Port
-resolv-retry infinite
-float
-fast-io
-nobind
-persist-key
-persist-remote-ip
-persist-tun
-auth-user-pass
-auth-nocache
-comp-lzo
-redirect-gateway def1
-reneg-sec 0
-verb 1
-key-direction 1
-
-<ca>
-$(cat /etc/openvpn/ca.crt)
-</ca>
-Config4
-
-# Creating OVPN download site index.html
-cat <<'mySiteOvpn' > /home/vps/public_html/index.html
-<!DOCTYPE html>
-<html lang="en">
-
-<!-- Openvpn Config File Download site by TsholoVPN -->
-
-<head><meta charset="utf-8" /><title>VPN Config File Download</title><meta name="description" content="TsholoVPN Server -Tsholo" /><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" /><meta name="theme-color" content="#000000" /><link rel="shortcut icon" type="image/x-icon" href="https://raw.githubusercontent.com/dopekid30/-generate-sa-idnumbers/master/dk.png"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"><link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.3/css/mdb.min.css" rel="stylesheet"></head><body><div class="container justify-content-center" style="margin-top:9em;margin-bottom:5em;"><div class="col-md"><div class="view"><img src="https://openvpn.net/wp-content/uploads/openvpn.jpg" class="card-img-top"><div class="mask rgba-white-slight"></div></div><div class="card"><div class="card-body"><h5 class="card-title">TsholoVPN Config List</h5><br /><ul 
-
-class="list-group"><li class="list-group-item justify-content-between align-items-center" style="margin-bottom:1em;"><p> Openvpn Default TCP <span class="badge light-blue darken-4">Android/iOS/PC/Modem</span><br /><small> This default and cannot be use for bypassing internet.</small></p><a class="btn btn-outline-success waves-effect btn-sm" href="http://IP-ADDRESS:NGINXPORT/Direct.TCP.ovpn" style="float:right;"><i class="fa fa-download"></i> Download</a></li><li 
-
-class="list-group-item justify-content-between align-items-center" style="margin-bottom:1em;"><p> Openvpn Default UDP <span class="badge light-blue darken-4">Android/iOS/PC/Modem</span><br /><small> This default and cannot be use for bypassing internet.</small></p><a class="btn btn-outline-success waves-effect btn-sm" href="http://IP-ADDRESS:NGINXPORT/Direct.UDP.ovpn" style="float:right;"><i class="fa fa-download"></i> Download</a></li><li 
-
-</ul></div></div></div></div></body></html>
-mySiteOvpn
- 
-# Setting template's correct name,IP address and nginx Port
-sed -i "s|NGINXPORT|$Nginx_Port|g" /home/vps/public_html/index.html
-sed -i "s|IP-ADDRESS|$IPADDR|g" /home/vps/public_html/index.html
-
-# Restarting nginx service
-systemctl restart nginx
- 
-# Creating all .ovpn config archives
-cd /home/vps/public_html
-zip -qq -r config.zip *.ovpn
-cd
-
-chown -R www-data:www-data /home/vps/public_html
-
 # Setting SSH To Work With Panel
 mkdir /etc/sshlogin
 
-wget -O /etc/sshlogin/connection.php https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Menu/connection.php &> /dev/null
+cat <<'SSHPanel' > "/etc/sshlogin/connection.php"
+<?php
+error_reporting(E_ERROR | E_PARSE);
+ini_set('display_errors', '1');
+//include('config.php');
+
+$DB_host = '185.61.137.174';
+$DB_user = 'vpnquest1_tsholovpn';
+$DB_pass = 'Pass1234Five@';
+$DB_name = 'vpnquest1_tsholovpn';
+
+$mysqli = new MySQLi($DB_host,$DB_user,$DB_pass,$DB_name);
+if ($mysqli->connect_error) {
+    die('Error : ('. $mysqli->connect_errno .') '. $mysqli->connect_error);
+}
+
+function encrypt_key($paswd)
+	{
+	  $mykey=getEncryptKey();
+	  $encryptedPassword=encryptPaswd($paswd,$mykey);
+	  return $encryptedPassword;
+	}
+	 
+	// function to get the decrypted user password
+	function decrypt_key($paswd)
+	{
+	  $mykey=getEncryptKey();
+	  $decryptedPassword=decryptPaswd($paswd,$mykey);
+	  return $decryptedPassword;
+	}
+	 
+	function getEncryptKey()
+	{
+		$secret_key = md5('tsholovpn');
+		$secret_iv = md5('vpntsholo');
+		$keys = $secret_key . $secret_iv;
+		return encryptor('encrypt', $keys);
+	}
+	function encryptPaswd($string, $key)
+	{
+	  $result = '';
+	  for($i=0; $i<strlen ($string); $i++)
+	  {
+		$char = substr($string, $i, 1);
+		$keychar = substr($key, ($i % strlen($key))-1, 1);
+		$char = chr(ord($char)+ord($keychar));
+		$result.=$char;
+	  }
+		return base64_encode($result);
+	}
+	 
+	function decryptPaswd($string, $key)
+	{
+	  $result = '';
+	  $string = base64_decode($string);
+	  for($i=0; $i<strlen($string); $i++)
+	  {
+		$char = substr($string, $i, 1);
+		$keychar = substr($key, ($i % strlen($key))-1, 1);
+		$char = chr(ord($char)-ord($keychar));
+		$result.=$char;
+	  }
+	 
+		return $result;
+	}
+	
+	function encryptor($action, $string) {
+		$output = false;
+
+		$encrypt_method = "AES-256-CBC";
+		//pls set your unique hashing key
+		$secret_key = md5('tsholovpn.info');
+		$secret_iv = md5('info.tsholovpn');
+
+		// hash
+		$key = hash('sha256', $secret_key);
+		
+		// iv - encrypt method AES-256-CBC expects 16 bytes - else you will get a warning
+		$iv = substr(hash('sha256', $secret_iv), 0, 16);
+
+		//do the encyption given text/string/number
+		if( $action == 'encrypt' ) {
+			$output = openssl_encrypt($string, $encrypt_method, $key, 0, $iv);
+			$output = base64_encode($output);
+		}
+		else if( $action == 'decrypt' ){
+			//decrypt the given text/string/number
+			$output = openssl_decrypt(base64_decode($string), $encrypt_method, $key, 0, $iv);
+		}
+
+		return $output;
+	}
+
+
+
+$data = '';
+$premium = "is_active=1 AND is_duration > 0";
+
+$query = $mysqli->query("SELECT * FROM user
+WHERE ".$premium." ORDER by id_user ASC");
+if($query->num_rows > 0)
+{
+	while($row = $query->fetch_assoc())
+	{
+		$data .= '';
+		$username = $row['username'];
+		$password = decrypt_key($row['password']);
+		$password = encryptor('decrypt',$password);		
+		$data .= '/usr/sbin/useradd -p $(openssl passwd -1 '.$password.') -M '.$username.';'.PHP_EOL;
+	}
+}
+$location = '/etc/sshlogin/active.sh';
+$fp = fopen($location, 'w');
+fwrite($fp, $data) or die("Unable to open file!");
+fclose($fp);
+
+#In-Active and Invalid Accounts
+$data2 = '';
+$premium_deactived = "is_duration <= 0";
+$is_activate = "is_active=0";
+$freeze = "is_freeze=0";
+$suspend = "is_suspend=0";
+
+$query2 = $mysqli->query("SELECT * FROM user 
+WHERE ".$suspend." OR ".$freeze." OR ".$premium_deactived ." OR ".$is_activate."
+");
+if($query2->num_rows > 0)
+{
+	while($row2 = $query2->fetch_assoc())
+	{
+		$data2 .= '';
+		$toadd = $row2['username'];	
+		$data2 .= '/usr/sbin/userdel '.$toadd.''.PHP_EOL;
+	}
+}
+$location2 = '/etc/sshlogin/inactive.sh';
+$fp = fopen($location2, 'w');
+fwrite($fp, $data2) or die("Unable to open file!");
+fclose($fp);
+
+$mysqli->close();
+?>
+SSHPanel
 
 sed -i "s|DatabaseHost|$DatabaseHost|g;s|DatabaseName|$DatabaseName|g;s|DatabaseUser|$DatabaseUser|g;s|DatabasePass|$DatabasePass|g" "/etc/sshlogin/connection.php"
 
@@ -1829,9 +1725,9 @@ cd
 
 # Pull BadVPN Binary 64bit or 32bit
 if [ "$(getconf LONG_BIT)" == "64" ]; then
- wget -O /usr/bin/badvpn-udpgw "https://www.dropbox.com/s/jo6qznzwbsf1xhi/badvpn-udpgw64"
+ wget -O /usr/bin/badvpn-udpgw "https://github.com/tjay13/AutoScriptDebian9/blob/main/Tools/badvpn-udpgw64?raw=true"
 else
- wget -O /usr/bin/badvpn-udpgw "https://www.dropbox.com/s/8gemt9c6k1fph26/badvpn-udpgw"
+ wget -O /usr/bin/badvpn-udpgw "https://github.com/tjay13/AutoScriptDebian9/blob/main/Tools/badvpn-udpgw?raw=true"
 fi
 
 # Change Permission to make it Executable
@@ -1915,7 +1811,7 @@ systemctl status --no-pager v2-ui
 
 # download script
 cd /usr/local/bin
-wget -O premium-script.tar.gz "https://www.dropbox.com/s/1ex9tr7hzoh53ln/premium-script.tar.gz"
+wget -O premium-script.tar.gz "https://github.com/tjay13/AutoScriptDebian9/blob/main/Tools/premium-script.tar.gz?raw=true"
 tar -xvf premium-script.tar.gz
 rm -f premium-script.tar.gz
 cp /usr/local/bin/menu /usr/bin/menu
