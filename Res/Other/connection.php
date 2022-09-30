@@ -4,9 +4,9 @@ ini_set('display_errors', '1');
 //include('config.php');
 
 $DB_host = '185.61.137.174';
-$DB_user = 'vpnquest1_user';
-$DB_pass = 's+(WT#r4CaB&';
-$DB_name = 'vpnquest1_dbase';
+$DB_user = 'vpnquest1_tsholovpn';
+$DB_pass = 'Pass1234Five@';
+$DB_name = 'vpnquest1_tsholovpn';
 
 $mysqli = new MySQLi($DB_host,$DB_user,$DB_pass,$DB_name);
 if ($mysqli->connect_error) {
