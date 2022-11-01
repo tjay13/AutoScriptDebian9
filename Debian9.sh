@@ -158,7 +158,6 @@ apt -y install php php-fpm php-cli php-mysql php-xml php-json php-common php-zip
 
 # Stop Nginx
 systemctl stop nginx
-service nginx stop
 
 # Install Apache2
 sudo apt-get install apache2 -y
@@ -185,7 +184,18 @@ systemctl daemon-reload
 systemctl enable sslh
 systemctl start sslh
 systemctl restart sslh
-service sslh restart
+
+# Install Webmin
+wget https://www.dropbox.com/s/0cusbpgvyit6oke/webmin_1.801_all.deb
+dpkg --install webmin_1.801_all.deb
+sleep 1
+rm -rf webmin_1.801_all.deb
+ 
+# Configuring webmin server config to use only http instead of https
+sed -i 's|ssl=1|ssl=0|g' /etc/webmin/miniserv.conf
+ 
+# Then restart to take effect
+systemctl restart webmin
 
 # remove unused
 apt-get -y --purge remove samba*;
@@ -215,7 +225,6 @@ sed -i '/max_connections/c\max_connections = 5000' /etc/mysql/mariadb.conf.d/50-
  
 # Then restart to take effect
 systemctl restart mysql
-service mysql restart
 
 # Bbanner
 apt-get -y install geoip-bin
@@ -277,7 +286,6 @@ echo '/usr/sbin/nologin' >> /etc/shells
 
 # Restarting openssh service
 systemctl restart ssh
-service ssh restart
   
 # Removing some duplicate config file
 rm -rf /etc/default/dropbear*
@@ -301,7 +309,6 @@ sed -i "s|PORT02|$Dropbear_Port2|g" /etc/default/dropbear
  
 # Restarting dropbear service
 systemctl restart dropbear
-service dropbear restart
 
 # STUNNEL
 StunnelDir=$(ls /etc/default | grep stunnel | head -n1)
@@ -483,7 +490,6 @@ sed -i "s|MainPort|$MainPort|g" /etc/stunnel/stunnel.conf
 
 # Restarting stunnel service
 systemctl restart $StunnelDir
-service $StunnelDir restart
 
 # SOCKS PROXY
 mkdir -p /etc/Tsholo-script/py-socksproxy
@@ -795,7 +801,6 @@ systemctl daemon-reload
 systemctl enable socksproxy
 systemctl restart socksproxy
 systemctl status --no-pager socksproxy
-service socksproxy restart
 
 # auto start socksproxy if offline
 cat <<'cronsocks' > /etc/socksproxy/socksproxy.sh
@@ -1184,8 +1189,6 @@ systemctl start openvpn@server_udp
 systemctl restart openvpn@server_udp
 systemctl status --no-pager openvpn@server_udp
 systemctl enable openvpn@server_udp
-
-service openvpn restart
  
 # Set Permission To Stat
 chmod -R 777 /var/www/html/stat
@@ -1235,7 +1238,6 @@ sed -i "s|Squid_Port3|$Squid_Port3|g" /etc/squid/squid.conf
 # Starting Proxy server
 echo -e "Restarting Squid Proxy server..."
 systemctl restart squid
-service squid restart
 
 # NGINX CONFIGURE
 rm /home/vps/public_html -rf
@@ -1466,7 +1468,6 @@ sed -i "s|Openvpn_Monitoring|$Openvpn_Monitoring|g" /etc/nginx/conf.d/monitoring
 systemctl start nginx
 systemctl restart nginx
 service php7.3-fpm restart
-service nginx restart
 
 # Setting Up OpenVPN monitoring
 apt-get install -y gcc libgeoip-dev python-virtualenv python-dev geoip-database-extra uwsgi uwsgi-plugin-python
@@ -1599,7 +1600,6 @@ sed -i "s|IP-ADDRESS|$IPADDR|g" /home/vps/public_html/index.html
 
 # Restarting nginx service
 systemctl restart nginx
-service nginx restart
  
 # Creating all .ovpn config archives
 cd /home/vps/public_html
@@ -1974,7 +1974,6 @@ systemctl daemon-reload
 systemctl enable loop
 systemctl restart loop
 systemctl status --no-pager loop
-service loop restart
 
 # Fixing Multilogin Script
 cat <<'Multilogin' > /etc/sshlogin/set_multilogin_autokill_lib
@@ -2094,7 +2093,6 @@ echo "* * * * * root /bin/bash /etc/sshlogin/inactive.sh >/dev/null 2>&1" > /etc
 sed -i "s|#SystemMaxUse=|SystemMaxUse=10M|g" /etc/systemd/journald.conf
 sed -i "s|#SystemMaxFileSize=|SystemMaxFileSize=1M|g" /etc/systemd/journald.conf
 systemctl restart systemd-journald
-service systemd-journald restart
 
 # Creating startup 1 script using cat eof tricks
 cat <<'Tsholoz' > /etc/Tsholostartup
@@ -2166,7 +2164,6 @@ Tsholox
 chmod +x /etc/Tsholostartup
 systemctl enable Tsholostartup
 systemctl start Tsholostartup
-service Tsholostartup restart
 cd
 
 # Pull BadVPN Binary 64bit or 32bit
@@ -2196,7 +2193,6 @@ Tsholob
 
 systemctl enable badvpn
 systemctl start badvpn
-service badvpn restart
 
 # TCP BBR
 brloc=/etc/modules-load.d/modules.conf
@@ -2553,8 +2549,6 @@ systemctl restart xray
 systemctl enable superxray
 systemctl restart superxray
 systemctl status --no-pager xray
-service xray restart
-service superxray restart
 
 #wget -O /usr/local/v2-ui-linux.tar.gz "https://www.dropbox.com/s/gg3043jt5rumift/v2-ui-linux.tar.gz"
 #cd /usr/local/
