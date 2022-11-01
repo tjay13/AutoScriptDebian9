@@ -187,19 +187,6 @@ systemctl start sslh
 systemctl restart sslh
 service sslh restart
 
-# Install Webmin
-wget https://www.dropbox.com/s/0cusbpgvyit6oke/webmin_1.801_all.deb
-dpkg --install webmin_1.801_all.deb
-sleep 1
-rm -rf webmin_1.801_all.deb
- 
-# Configuring webmin server config to use only http instead of https
-sed -i 's|ssl=1|ssl=0|g' /etc/webmin/miniserv.conf
- 
-# Then restart to take effect
-systemctl restart webmin
-service webmin restart
-
 # remove unused
 apt-get -y --purge remove samba*;
 apt-get -y --purge remove sendmail*;
