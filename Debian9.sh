@@ -62,8 +62,8 @@ Nginx_vpn='80'
 Apache_Port='2087' # for openvpn panel stat port
 
 # DNS Resolver
-Dns_1='8.8.8.8' # GoogleDNS
-Dns_2='8.8.4.4' # GoogleDNS
+Dns_1='1.1.1.1' # GoogleDNS
+Dns_2='1.0.0.1' # GoogleDNS
 
 # Server local time
 MyVPS_Time='Africa/Johannesburg'
