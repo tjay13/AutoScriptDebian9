@@ -1,6 +1,6 @@
 #!/bin/bash
 #    ░▒▓█ ☁️ Tsholo Script 1.0.0 ☁️ █▓▒░" 
-#                         by: TsholoVPN
+#                         by: joash singh
 
 #########################################################
 ###      Input Your Desired Configuration Information
@@ -47,6 +47,7 @@ V2ray_Port3='30310'
 # Python Socks Proxy
 WsPort='2424'  # for port 8080 change cloudflare SSL/TLS to full
 WsResponse='HTTP/1.1 101 Switching Protocols\r\n\r\n'
+WsHTTPResponse='HTTP/1.1 200 OK\r\n\r\n'
 
 # SSLH Port
 MainPort='666' # main port to tunnel default 443
@@ -509,7 +510,7 @@ cat << web > $apachedir/index.html
     <meta name="viewport" content="width=device-width">
 </head>
 <body>
-    <center>SocksProxy Server by<br><a href="https://t.me/TsholoVPN">TsholoVPN</a><br><br>Copyright &#169; 2022</center>
+    <center>SocksProxy Server by<br><a href="https://t.me/Joash_Singh">Joash Singh</a><br><br>Copyright &#169; 2022</center>
 </body>
 </html>
 web
@@ -520,7 +521,8 @@ import socket, threading, thread, select, signal, sys, time, getopt
 # CONFIG
 LISTENING_ADDR = '0.0.0.0'
 LISTENING_PORT = $WsPort
-PASS = ''
+
+PASS = 'TJAY'
 
 # CONST
 BUFLEN = 4096 * 4
@@ -528,7 +530,7 @@ TIMEOUT = 60
 SSH_HOST = '127.0.0.1:$Dropbear_Port1'
 OPENVPN_HOST = '127.0.0.1:$OpenVPN_TCP_Port'
 RESPONSE = '$WsResponse'
- 
+
 class Server(threading.Thread):
     def __init__(self, host, port):
         threading.Thread.__init__(self)
@@ -536,8 +538,8 @@ class Server(threading.Thread):
         self.host = host
         self.port = port
         self.threads = []
-	self.threadsLock = threading.Lock()
-	self.logLock = threading.Lock()
+        self.threadsLock = threading.Lock()
+        self.logLock = threading.Lock()
 
     def run(self):
         self.soc = socket.socket(socket.AF_INET)
@@ -547,26 +549,26 @@ class Server(threading.Thread):
         self.soc.listen(0)
         self.running = True
 
-        try:                    
+        try:
             while self.running:
                 try:
                     c, addr = self.soc.accept()
                     c.setblocking(1)
                 except socket.timeout:
                     continue
-                
+
                 conn = ConnectionHandler(c, self, addr)
-                conn.start();
+                conn.start()
                 self.addConn(conn)
         finally:
             self.running = False
             self.soc.close()
-            
+
     def printLog(self, log):
         self.logLock.acquire()
         print log
         self.logLock.release()
-	
+
     def addConn(self, conn):
         try:
             self.threadsLock.acquire()
@@ -574,25 +576,24 @@ class Server(threading.Thread):
                 self.threads.append(conn)
         finally:
             self.threadsLock.release()
-                    
+
     def removeConn(self, conn):
         try:
             self.threadsLock.acquire()
             self.threads.remove(conn)
         finally:
             self.threadsLock.release()
-                
+
     def close(self):
         try:
             self.running = False
             self.threadsLock.acquire()
-            
+
             threads = list(self.threads)
             for c in threads:
                 c.close()
         finally:
             self.threadsLock.release()
-			
 
 class ConnectionHandler(threading.Thread):
     def __init__(self, socClient, server, addr):
@@ -613,7 +614,7 @@ class ConnectionHandler(threading.Thread):
             pass
         finally:
             self.clientClosed = True
-            
+
         try:
             if not self.targetClosed:
                 self.target.shutdown(socket.SHUT_RDWR)
@@ -625,10 +626,11 @@ class ConnectionHandler(threading.Thread):
 
     def run(self):
         try:
-            self.client_buffer = self.client.recv(BUFLEN)        
+            self.client_buffer = self.client.recv(BUFLEN)
             hostPort = self.findHeader(self.client_buffer, 'X-Real-Host')
-            passwd = self.findHeader(self.client_buffer, 'X-Pass')
-				
+            passwd = self.findHeader(self.client_buffer, 'X-Pass')            
+
+            if passwd != '':
                 if len(PASS) != 0 and passwd == PASS:
                     self.method_CONNECT(SSH_HOST)
                 elif len(PASS) != 0 and passwd != PASS:
@@ -651,7 +653,7 @@ class ConnectionHandler(threading.Thread):
 
     def findHeader(self, head, header):
         aux = head.find(header + ': ')
-    
+
         if aux == -1:
             return ''
 
@@ -674,6 +676,11 @@ class ConnectionHandler(threading.Thread):
                 port = 443
             else:
                 port = 80
+                port = $WsPort
+                port = 8080
+                port = 8880
+                port = 2052
+                port = 2082
 
         (soc_family, soc_type, proto, _, address) = socket.getaddrinfo(host, port)[0]
 
@@ -683,7 +690,7 @@ class ConnectionHandler(threading.Thread):
 
     def method_CONNECT(self, path):
         self.log += ' - CONNECT ' + path
-        
+
         self.connect_target(path)
         self.client.sendall(RESPONSE)
         self.client_buffer = ''
@@ -724,7 +731,6 @@ class ConnectionHandler(threading.Thread):
             if error:
                 break
 
-
 def print_usage():
     print 'Usage: proxy.py -p <port>'
     print 'proxy.py -b <bindAddr> -p <port>'
@@ -733,7 +739,7 @@ def print_usage():
 def parse_args(argv):
     global LISTENING_ADDR
     global LISTENING_PORT
-    
+
     try:
         opts, args = getopt.getopt(argv,"hb:p:",["bind=","port="])
     except getopt.GetoptError:
@@ -747,17 +753,15 @@ def parse_args(argv):
             LISTENING_ADDR = arg
         elif opt in ("-p", "--port"):
             LISTENING_PORT = int(arg)
-    
+
 
 def main(host=LISTENING_ADDR, port=LISTENING_PORT):
-    
-    print "\n ==============================\n"
-    print "\n         PYTHON PROXY          \n"
-    print "\n ==============================\n"
-    print "corriendo ip: " + LISTENING_ADDR
-    print "corriendo port: " + str(LISTENING_PORT) + "\n"
-    print "Se ha Iniciado Por Favor Cierre el Terminal\n"
-    
+
+    print "\n:-------PythonProxy-------:\n"
+    print "Listening addr: " + LISTENING_ADDR
+    print "Listening port: " + str(LISTENING_PORT) + "\n"
+    print ":-------------------------:\n"
+
     server = Server(LISTENING_ADDR, LISTENING_PORT)
     server.start()
 
@@ -768,7 +772,7 @@ def main(host=LISTENING_ADDR, port=LISTENING_PORT):
             print 'Stopping...'
             server.close()
             break
-    
+
 if __name__ == '__main__':
     parse_args(sys.argv[1:])
     main()
@@ -1348,21 +1352,6 @@ sed -i '$ iproxy_set_header Connection "upgrade";' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_set_header Host \$http_host;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
 
-sed -i '$ ilocation /' /etc/nginx/conf.d/vpn.conf
-sed -i '$ i{' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iif ($http_upgrade != "h2") {' /etc/nginx/conf.d/vpn.conf
-sed -i '$ i	return 404;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_pass http://localhost:WsPort;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_http_version 1.1;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header Upgrade \$http_upgrade;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header Connection "upgrade";' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header Host \$http_host;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
-
 sed -i '$ ilocation = /dkws' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i{' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/vpn.conf
@@ -1513,6 +1502,8 @@ gzip -d /var/lib/GeoIP/GeoLite2-City.mmdb.gz
 # Default TCP
 cat <<Config3> /home/vps/public_html/Direct.TCP.ovpn
 # Tsholo VPN Premium Script Config
+# © Github.com/dopekid30
+# Facebook: https://fb.me/joash.singh.90
 # Thanks for using this script config, Enjoy Highspeed OpenVPN Service
 
 client
@@ -1551,6 +1542,8 @@ Config3
 # Default UDP
 cat <<Config4> /home/vps/public_html/Direct.UDP.ovpn
 # Tsholo VPN Premium Script Config
+# © Github.com/dopekid30
+# Facebook: https://fb.me/joash.singh.90
 # Thanks for using this script config, Enjoy Highspeed OpenVPN Service
 
 client
@@ -1583,7 +1576,7 @@ cat <<'mySiteOvpn' > /home/vps/public_html/index.html
 <!DOCTYPE html>
 <html lang="en">
 
-<!-- Openvpn Config File Download site by TsholoVPN -->
+<!-- Openvpn Config File Download site by Joash Singh -->
 
 <head><meta charset="utf-8" /><title>VPN Config File Download</title><meta name="description" content="Tsholo Server -Joash" /><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" /><meta name="theme-color" content="#000000" /><link rel="shortcut icon" type="image/x-icon" href="https://raw.githubusercontent.com/dopekid30/-generate-sa-idnumbers/master/dk.png"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"><link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.3/css/mdb.min.css" rel="stylesheet"></head><body><div class="container justify-content-center" style="margin-top:9em;margin-bottom:5em;"><div class="col-md"><div class="view"><img src="https://openvpn.net/wp-content/uploads/openvpn.jpg" class="card-img-top"><div class="mask rgba-white-slight"></div></div><div class="card"><div class="card-body"><h5 class="card-title">Tsholo Config List</h5><br /><ul 
 
@@ -1879,7 +1872,7 @@ chmod -R 777 /etc/sshlogin/mysql.class.php
 # Update SSH Users to connected on database
 cat <<'SshDB' > /etc/sshlogin/sshauth.sh
 #!/bin/bash
-#Created by TsholoVPN
+#Created by joash singh
 
 if [ -e "/var/log/auth.log" ]; then
         LOG="/var/log/auth.log";
@@ -2135,7 +2128,7 @@ echo "nameserver DNS2" >> /etc/resolv.conf
 ######          WHOLE SCRIPT WILL COLLAPSE         
 ######         IF YOU ADD NOT WORKING SCRIPT       
 ######    TEST IT BEFORE ADD YOUR COMMAND HERE     
-######              by: TsholoVPN
+######              by: joash singh
 Tsholoz
 
 sed -i "s|MyTimeZone|$MyVPS_Time|g" /etc/Tsholostartup
@@ -2641,7 +2634,7 @@ echo "  ★ Multi-login Limit customize per user [see menu]. " | tee -a log-inst
 echo "  ★ To display list of commands:  " [ menu ] or [ menu dk ] "" | tee -a log-install.txt | lolcat
 echo "" | tee -a log-install.txt | lolcat
 echo "  ★ Other concern and questions of these auto-scripts?" | tee -a log-install.txt | lolcat
-echo "    Direct Messege : https://t.me/TsholoVPN" | tee -a log-install.txt | lolcat
+echo "    Direct Messege : https://t.me/Joash_Singh" | tee -a log-install.txt | lolcat
 echo ""
 read -p " Press enter.."
 
