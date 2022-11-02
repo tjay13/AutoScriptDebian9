@@ -45,7 +45,8 @@ V2ray_Port2='30300'
 V2ray_Port3='30310'
 
 # Python Socks Proxy
-WsPort='2424'  # for port 8080 change cloudflare SSL/TLS to full
+WsPort='8880'  # for port 8080 change cloudflare SSL/TLS to full
+WsPort1='1080'  # for port 8080 change cloudflare SSL/TLS to full
 WsResponse='HTTP/1.1 101 Switching Protocols\r\n\r\n'
 WsHTTPResponse='HTTP/1.1 200 OK\r\n\r\n'
 
@@ -465,7 +466,7 @@ connect = 127.0.0.1:openssh_port_c
 
 [openvpn]
 accept = Stunnel_Port3
-connect = 127.0.0.1:openvpn_port_c
+connect = 127.0.0.1:WsPort1
 
 [websocket]
 accept = Stunnel_Port4
@@ -487,6 +488,7 @@ sed -i "s|dropbear_port_c|$Dropbear_Port1|g" /etc/stunnel/stunnel.conf
 sed -i "s|openssh_port_c|$SSH_Port1|g" /etc/stunnel/stunnel.conf
 sed -i "s|openvpn_port_c|$OpenVPN_TCP_Port|g" /etc/stunnel/stunnel.conf
 sed -i "s|WsPort|$WsPort|g" /etc/stunnel/stunnel.conf
+sed -i "s|WsPort1|$WsPort1|g" /etc/stunnel/stunnel.conf
 sed -i "s|MainPort|$MainPort|g" /etc/stunnel/stunnel.conf
 
 # Restarting stunnel service
@@ -515,296 +517,30 @@ cat << web > $apachedir/index.html
 </html>
 web
 
-cat << Socks > $loc/proxy.py
-import socket, threading, thread, select, signal, sys, time, getopt
+# System OpenVPN Websocket Python
+wget -O /etc/systemd/system/ws.service https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/ws.service &> /dev/null
+wget -O /etc/systemd/system/wsssh.service https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/wsssh.service &> /dev/null
 
-# CONFIG
-LISTENING_ADDR = '0.0.0.0'
-LISTENING_PORT = $WsPort
+wget -O /usr/local/bin/ws-openvpn https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/ws-openvpn &> /dev/null
+wget -O /usr/local/bin/ws-ssh https://raw.githubusercontent.com/tjay13/TsholoVPN/master/Tools/Websocket/ws-ssh &> /dev/null
 
-PASS = ''
+# Set Permission
+chmod +x /usr/local/bin/ws-openvpn
+chmod +x /usr/local/bin/ws-ssh
 
-# CONST
-BUFLEN = 4096 * 4
-TIMEOUT = 60
-SSH_HOST = '127.0.0.1:$Dropbear_Port1'
-OPENVPN_HOST = '127.0.0.1:$OpenVPN_TCP_Port'
-RESPONSE = '$WsResponse'
+clear
+cd
+echo " "
+echo " "
+echo "WEBSOCKET SUCCESSFULLY INSTALLED!"
 
-class Server(threading.Thread):
-    def __init__(self, host, port):
-        threading.Thread.__init__(self)
-        self.running = False
-        self.host = host
-        self.port = port
-        self.threads = []
-        self.threadsLock = threading.Lock()
-        self.logLock = threading.Lock()
+systemctl enable ws.service
+systemctl start ws.service
+systemctl restart ws.service
 
-    def run(self):
-        self.soc = socket.socket(socket.AF_INET)
-        self.soc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.soc.settimeout(2)
-        self.soc.bind((self.host, self.port))
-        self.soc.listen(0)
-        self.running = True
-
-        try:
-            while self.running:
-                try:
-                    c, addr = self.soc.accept()
-                    c.setblocking(1)
-                except socket.timeout:
-                    continue
-
-                conn = ConnectionHandler(c, self, addr)
-                conn.start()
-                self.addConn(conn)
-        finally:
-            self.running = False
-            self.soc.close()
-
-    def printLog(self, log):
-        self.logLock.acquire()
-        print log
-        self.logLock.release()
-
-    def addConn(self, conn):
-        try:
-            self.threadsLock.acquire()
-            if self.running:
-                self.threads.append(conn)
-        finally:
-            self.threadsLock.release()
-
-    def removeConn(self, conn):
-        try:
-            self.threadsLock.acquire()
-            self.threads.remove(conn)
-        finally:
-            self.threadsLock.release()
-
-    def close(self):
-        try:
-            self.running = False
-            self.threadsLock.acquire()
-
-            threads = list(self.threads)
-            for c in threads:
-                c.close()
-        finally:
-            self.threadsLock.release()
-
-class ConnectionHandler(threading.Thread):
-    def __init__(self, socClient, server, addr):
-        threading.Thread.__init__(self)
-        self.clientClosed = False
-        self.targetClosed = True
-        self.client = socClient
-        self.client_buffer = ''
-        self.server = server
-        self.log = 'Connection: ' + str(addr)
-
-    def close(self):
-        try:
-            if not self.clientClosed:
-                self.client.shutdown(socket.SHUT_RDWR)
-                self.client.close()
-        except:
-            pass
-        finally:
-            self.clientClosed = True
-
-        try:
-            if not self.targetClosed:
-                self.target.shutdown(socket.SHUT_RDWR)
-                self.target.close()
-        except:
-            pass
-        finally:
-            self.targetClosed = True
-
-    def run(self):
-        try:
-            self.client_buffer = self.client.recv(BUFLEN)
-            hostPort = self.findHeader(self.client_buffer, 'X-Real-Host')
-            passwd = self.findHeader(self.client_buffer, 'X-Pass')            
-
-            if passwd != '':
-                if len(PASS) != 0 and passwd == PASS:
-                    self.method_CONNECT(SSH_HOST)
-                elif len(PASS) != 0 and passwd != PASS:
-                    self.client.send('HTTP/1.1 400 WrongPass!\r\n\r\n')
-                elif hostPort.startswith('127.0.0.1') or hostPort.startswith('localhost'):
-                    self.method_CONNECT(SSH_HOST)
-                else:
-                    self.client.send('HTTP/1.1 403 Forbidden!\r\n\r\n')
-            else:
-                print '- No X-Pass Switching Protocols To Openvpn!'
-                self.method_CONNECT(OPENVPN_HOST)
-
-        except Exception as e:
-            self.log += ' - error: ' + e.strerror
-            self.server.printLog(self.log)
-	    pass
-        finally:
-            self.close()
-            self.server.removeConn(self)
-
-    def findHeader(self, head, header):
-        aux = head.find(header + ': ')
-
-        if aux == -1:
-            return ''
-
-        aux = head.find(':', aux)
-        head = head[aux+2:]
-        aux = head.find('\r\n')
-
-        if aux == -1:
-            return ''
-
-        return head[:aux];
-
-    def connect_target(self, host):
-        i = host.find(':')
-        if i != -1:
-            port = int(host[i+1:])
-            host = host[:i]
-        else:
-            if self.method=='CONNECT':
-                port = 443
-            else:
-                port = 80
-                port = $WsPort
-                port = 8080
-                port = 8880
-                port = 2052
-                port = 2082
-
-        (soc_family, soc_type, proto, _, address) = socket.getaddrinfo(host, port)[0]
-
-        self.target = socket.socket(soc_family, soc_type, proto)
-        self.targetClosed = False
-        self.target.connect(address)
-
-    def method_CONNECT(self, path):
-        self.log += ' - CONNECT ' + path
-
-        self.connect_target(path)
-        self.client.sendall(RESPONSE)
-        self.client_buffer = ''
-
-        self.server.printLog(self.log)
-        self.doCONNECT()
-
-    def doCONNECT(self):
-        socs = [self.client, self.target]
-        count = 0
-        error = False
-        while True:
-            count += 1
-            (recv, _, err) = select.select(socs, [], socs, 3)
-            if err:
-                error = True
-            if recv:
-                for in_ in recv:
-		    try:
-                        data = in_.recv(BUFLEN)
-                        if data:
-			    if in_ is self.target:
-				self.client.send(data)
-                            else:
-                                while data:
-                                    byte = self.target.send(data)
-                                    data = data[byte:]
-
-                            count = 0
-			else:
-			    break
-		    except:
-                        error = True
-                        break
-            if count == TIMEOUT:
-                error = True
-
-            if error:
-                break
-
-def print_usage():
-    print 'Usage: proxy.py -p <port>'
-    print 'proxy.py -b <bindAddr> -p <port>'
-    print 'proxy.py -b 0.0.0.0 -p $WsPort'
-
-def parse_args(argv):
-    global LISTENING_ADDR
-    global LISTENING_PORT
-
-    try:
-        opts, args = getopt.getopt(argv,"hb:p:",["bind=","port="])
-    except getopt.GetoptError:
-        print_usage()
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print_usage()
-            sys.exit()
-        elif opt in ("-b", "--bind"):
-            LISTENING_ADDR = arg
-        elif opt in ("-p", "--port"):
-            LISTENING_PORT = int(arg)
-
-
-def main(host=LISTENING_ADDR, port=LISTENING_PORT):
-
-    print "\n:-------PythonProxy-------:\n"
-    print "Listening addr: " + LISTENING_ADDR
-    print "Listening port: " + str(LISTENING_PORT) + "\n"
-    print ":-------------------------:\n"
-
-    server = Server(LISTENING_ADDR, LISTENING_PORT)
-    server.start()
-
-    while True:
-        try:
-            time.sleep(2)
-        except KeyboardInterrupt:
-            print 'Stopping...'
-            server.close()
-            break
-
-if __name__ == '__main__':
-    parse_args(sys.argv[1:])
-    main()
-
-Socks
-
-# creating a service
-cat << service > /etc/systemd/system/socksproxy.service
-[Unit]
-Description=Socks Proxy
-Documentation=https://Tsholovpn.net/
-After=network.target nss-lookup.target
-[Service]
-Type=simple
-User=root
-NoNewPrivileges=true
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE
-ExecStart=/usr/bin/python -O /etc/socksproxy/proxy.py
-ProtectSystem=true
-ProtectHome=true
-RemainAfterExit=yes
-Restart=on-failure
-[Install]
-WantedBy=multi-user.target
-service
-
-# start the service
-systemctl daemon-reload
-systemctl enable socksproxy
-systemctl restart socksproxy
-systemctl status --no-pager socksproxy
+systemctl enable wsssh.service
+systemctl start wsssh.service
+systemctl restart wsssh.service
 
 # auto start socksproxy if offline
 cat <<'cronsocks' > /etc/socksproxy/socksproxy.sh
@@ -1358,7 +1094,7 @@ sed -i '$ iif ($http_upgrade != "h2") {' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i	return 404;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_pass http://localhost:WsPort;' /etc/nginx/conf.d/vpn.conf
+sed -i '$ iproxy_pass http://localhost:WsPort1;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_http_version 1.1;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;' /etc/nginx/conf.d/vpn.conf
@@ -1464,6 +1200,7 @@ sed -i "s|Php_Socket|$Php_Socket|g" /etc/nginx/conf.d/vps.conf
 sed -i "s|Nginx_Port|$Nginx_Port|g" /etc/nginx/conf.d/vps.conf
 sed -i "s|Nginx_vpn|$Nginx_vpn|g" /etc/nginx/conf.d/vpn.conf
 sed -i "s|WsPort|$WsPort|g" /etc/nginx/conf.d/vpn.conf
+sed -i "s|WsPort1|$WsPort1|g" /etc/nginx/conf.d/vpn.conf
 sed -i "s|V2ray_Port2|$V2ray_Port2|g" /etc/nginx/conf.d/vpn.conf
 sed -i "s|V2ray_Port3|$V2ray_Port3|g" /etc/nginx/conf.d/vpn.conf
 sed -i "s|Openvpn_Monitoring|$Openvpn_Monitoring|g" /etc/nginx/conf.d/monitoring.conf
@@ -2624,7 +2361,7 @@ echo "   • SSL through OpenSSH  : [ON] : $Stunnel_Port2 " | tee -a log-install
 echo "   • SSL through Openvpn  : [ON] : $Stunnel_Port3 | $Stunnel_Port5" | tee -a log-install.txt | lolcat
 echo "   • SSL through Websocket: [ON] : $Stunnel_Port4 " | tee -a log-install.txt | lolcat
 echo "   • OpenVPN Websocket    : [ON] : 443 | 80 | $WsPort" | tee -a log-install.txt | lolcat
-echo "   • SSH Websocket        : [ON] : 443 | 80 | $WsPort " | tee -a log-install.txt | lolcat
+echo "   • SSH Websocket        : [ON] : 443 | 80 | $WsPort1 " | tee -a log-install.txt | lolcat
 echo "   • Xray Trojan Ws       : [ON] : 443 | 80" | tee -a log-install.txt | lolcat
 echo "   • Xray Shadowsocks Ws  : [ON] : 443 | 80" | tee -a log-install.txt | lolcat
 echo "   • Xray Vless Ws        : [ON] : 443 | 80" | tee -a log-install.txt | lolcat
