@@ -1066,6 +1066,7 @@ server {
 myMonitoringC
 
 ## Setting nginx vpn config
+## Setting nginx vpn config
 cat <<'myvpnC' > /etc/nginx/conf.d/vpn.conf
 server {
   listen       Nginx_vpn;
@@ -1080,21 +1081,6 @@ sed -i '$ i	return 404;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_pass http://localhost:WsPort;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_http_version 1.1;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header Upgrade \$http_upgrade;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header Connection "upgrade";' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_set_header Host \$http_host;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
-
-sed -i '$ ilocation /' /etc/nginx/conf.d/vpn.conf
-sed -i '$ i{' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iif ($http_upgrade != "h2") {' /etc/nginx/conf.d/vpn.conf
-sed -i '$ i	return 404;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/vpn.conf
-sed -i '$ iproxy_pass http://localhost:WsPort1;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_http_version 1.1;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;' /etc/nginx/conf.d/vpn.conf
@@ -1151,7 +1137,7 @@ sed -i '$ iproxy_set_header Connection "upgrade";' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_set_header Host \$http_host;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
 
-sed -i '$ ilocation ^~ /vless-grpc' /etc/nginx/conf.d/vpn.conf
+sed -i '$ ilocation ^~ /vlessgrpc' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i{' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ igrpc_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/vpn.conf
@@ -1160,7 +1146,7 @@ sed -i '$ igrpc_set_header Host \$http_host;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ igrpc_pass grpc://unix:/run/xray/vless_grpc.sock;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
 
-sed -i '$ ilocation ^~ /vmess-grpc' /etc/nginx/conf.d/vpn.conf
+sed -i '$ ilocation ^~ /vmessgrpc' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i{' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ igrpc_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/vpn.conf
@@ -1169,7 +1155,7 @@ sed -i '$ igrpc_set_header Host \$http_host;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ igrpc_pass grpc://unix:/run/xray/vmess_grpc.sock;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
 
-sed -i '$ ilocation ^~ /trojan-grpc' /etc/nginx/conf.d/vpn.conf
+sed -i '$ ilocation ^~ /trojangrpc' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i{' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ igrpc_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/vpn.conf
@@ -1178,7 +1164,7 @@ sed -i '$ igrpc_set_header Host \$http_host;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ igrpc_pass grpc://unix:/run/xray/trojan_grpc.sock;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i}' /etc/nginx/conf.d/vpn.conf
 
-sed -i '$ ilocation ^~ /ss-grpc' /etc/nginx/conf.d/vpn.conf
+sed -i '$ ilocation ^~ /ssgrpc' /etc/nginx/conf.d/vpn.conf
 sed -i '$ i{' /etc/nginx/conf.d/vpn.conf
 sed -i '$ iproxy_redirect off;' /etc/nginx/conf.d/vpn.conf
 sed -i '$ igrpc_set_header X-Real-IP \$remote_addr;' /etc/nginx/conf.d/vpn.conf
@@ -1200,9 +1186,16 @@ sed -i "s|Php_Socket|$Php_Socket|g" /etc/nginx/conf.d/vps.conf
 sed -i "s|Nginx_Port|$Nginx_Port|g" /etc/nginx/conf.d/vps.conf
 sed -i "s|Nginx_vpn|$Nginx_vpn|g" /etc/nginx/conf.d/vpn.conf
 sed -i "s|WsPort|$WsPort|g" /etc/nginx/conf.d/vpn.conf
-sed -i "s|WsPort1|$WsPort1|g" /etc/nginx/conf.d/vpn.conf
 sed -i "s|V2ray_Port2|$V2ray_Port2|g" /etc/nginx/conf.d/vpn.conf
 sed -i "s|V2ray_Port3|$V2ray_Port3|g" /etc/nginx/conf.d/vpn.conf
+sed -i "s|dkws|$Vlessws|g" /etc/nginx/conf.d/vpn.conf
+sed -i "s|dkvws|$Vmessws|g" /etc/nginx/conf.d/vpn.conf
+sed -i "s|dktrojanws|$Trojanws|g" /etc/nginx/conf.d/vpn.conf
+sed -i "s|dkssws|$Ssws|g" /etc/nginx/conf.d/vpn.conf
+sed -i "s|vlessgrpc|$Vlessgrpc|g" /etc/nginx/conf.d/vpn.conf
+sed -i "s|vmessgrpc|$Vmessgrpc|g" /etc/nginx/conf.d/vpn.conf
+sed -i "s|trojangrpc|$Trojangrpc|g" /etc/nginx/conf.d/vpn.conf
+sed -i "s|ssgrpc|$Ssgrpc|g" /etc/nginx/conf.d/vpn.conf
 sed -i "s|Openvpn_Monitoring|$Openvpn_Monitoring|g" /etc/nginx/conf.d/monitoring.conf
 
 # Restarting nginx & php
