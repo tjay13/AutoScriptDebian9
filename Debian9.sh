@@ -14,7 +14,7 @@ ServerName='Tsholo-VPN'
 
 # OpenSSH Ports
 SSH_Port1='22'
-SSH_Port2='299'
+SSH_Port2='5829'
 
 # Dropbear Ports
 Dropbear_Port1='790'
