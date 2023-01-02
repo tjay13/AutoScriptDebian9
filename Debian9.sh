@@ -1,6 +1,6 @@
 #!/bin/bash
 #    ░▒▓█ ☁️ Tsholo Script 1.0.0 ☁️ █▓▒░" 
-#                         by: joash singh
+#                         by: TsholoVPN
 
 #########################################################
 ###      Input Your Desired Configuration Information
@@ -510,7 +510,7 @@ cat << web > $apachedir/index.html
     <meta name="viewport" content="width=device-width">
 </head>
 <body>
-    <center>SocksProxy Server by<br><a href="https://t.me/Joash_Singh">Joash Singh</a><br><br>Copyright &#169; 2022</center>
+    <center>SocksProxy Server by<br><a href="https://t.me/TsholoVPN">TsholoVPN</a><br><br>Copyright &#169; 2022</center>
 </body>
 </html>
 web
@@ -884,7 +884,7 @@ keepalive 5 30
 persist-key 
 persist-tun
 verb 3 
-status /var/www/html/stat/tcp.txt
+status /var/www/html/status/tcp.txt
 myOpenVPNconf
 
 cat <<'myOpenVPNconf2' > /etc/openvpn/server_udp.conf
@@ -914,7 +914,7 @@ rcvbuf 524288
 comp-lzo
 persist-key
 persist-tun
-status /var/www/html/stat/udp.txt
+status /var/www/html/status/udp.txt
 verb 3
 script-security 3
 myOpenVPNconf2
@@ -1155,7 +1155,7 @@ echo 1 > /proc/sys/net/ipv4/ip_forward
  
 # Create OpenVPN Paths
 mkdir /etc/openvpn/script
-mkdir /var/www/html/stat
+mkdir /var/www/html/status
 
 
 # Auth Script
@@ -1202,7 +1202,7 @@ systemctl status --no-pager openvpn@server_udp
 systemctl enable openvpn@server_udp
  
 # Set Permission To Stat
-chmod -R 777 /var/www/html/stat
+chmod -R 777 /var/www/html/status
 
 # Removing Duplicate Squid config
 rm -rf /etc/squid/squid.con*
@@ -1511,8 +1511,6 @@ gzip -d /var/lib/GeoIP/GeoLite2-City.mmdb.gz
 # Default TCP
 cat <<Config3> /home/vps/public_html/Direct.TCP.ovpn
 # Tsholo VPN Premium Script Config
-# © Github.com/dopekid30
-# Facebook: https://fb.me/joash.singh.90
 # Thanks for using this script config, Enjoy Highspeed OpenVPN Service
 
 client
@@ -1551,8 +1549,6 @@ Config3
 # Default UDP
 cat <<Config4> /home/vps/public_html/Direct.UDP.ovpn
 # Tsholo VPN Premium Script Config
-# © Github.com/dopekid30
-# Facebook: https://fb.me/joash.singh.90
 # Thanks for using this script config, Enjoy Highspeed OpenVPN Service
 
 client
@@ -1585,7 +1581,7 @@ cat <<'mySiteOvpn' > /home/vps/public_html/index.html
 <!DOCTYPE html>
 <html lang="en">
 
-<!-- Openvpn Config File Download site by Joash Singh -->
+<!-- Openvpn Config File Download site by TsholoVPN -->
 
 <head><meta charset="utf-8" /><title>VPN Config File Download</title><meta name="description" content="Tsholo Server -Joash" /><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport" /><meta name="theme-color" content="#000000" /><link rel="shortcut icon" type="image/x-icon" href="https://raw.githubusercontent.com/dopekid30/-generate-sa-idnumbers/master/dk.png"><link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css"><link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet"><link href="https://cdnjs.cloudflare.com/ajax/libs/mdbootstrap/4.8.3/css/mdb.min.css" rel="stylesheet"></head><body><div class="container justify-content-center" style="margin-top:9em;margin-bottom:5em;"><div class="col-md"><div class="view"><img src="https://openvpn.net/wp-content/uploads/openvpn.jpg" class="card-img-top"><div class="mask rgba-white-slight"></div></div><div class="card"><div class="card-body"><h5 class="card-title">Tsholo Config List</h5><br /><ul 
 
@@ -1763,11 +1759,11 @@ if [ -e "/var/log/secure" ]; then
 fi
 
 # RESET
->"/var/www/html/stat/ssh.txt";
+>"/var/www/html/status/ssh.txt";
 
 # SOME INFO
-echo "DROPBEAR & OPENSSH ONLINE CLIENT LIST" >> "/var/www/html/stat/ssh.txt";
-echo "UPDATED ON $date $time" >> "/var/www/html/stat/ssh.txt";
+echo "DROPBEAR & OPENSSH ONLINE CLIENT LIST" >> "/var/www/html/status/ssh.txt";
+echo "UPDATED ON $date $time" >> "/var/www/html/status/ssh.txt";
 
 # DROPBEAR
 data=( `ps aux | grep -i dropbear | awk '{print $2}'`);
@@ -1780,7 +1776,7 @@ do
         IP=`cat /tmp/login-db-pid.txt | awk '{print $12}'`;
         SINCE=`cat /tmp/login-db-pid.txt | awk '{print $1, $2, $3}'`;
         if [ $NUM -eq 1 ]; then
-                echo "$USER,$IP,$PID,2022,$SINCE" >> "/var/www/html/stat/ssh.txt";
+                echo "$USER,$IP,$PID,2022,$SINCE" >> "/var/www/html/status/ssh.txt";
         fi
 done
 
@@ -1795,7 +1791,7 @@ do
         IP=`cat /tmp/login-db-pid.txt | awk '{print $11}'`;
         SINCE=`cat /tmp/login-db-pid.txt | awk '{print $1, $2, $3}'`;
         if [ $NUM -eq 1 ]; then
-                echo "$USER,$IP:8989,$PID,2022,$SINCE" >> "/var/www/html/stat/ssh.txt";
+                echo "$USER,$IP:8989,$PID,2022,$SINCE" >> "/var/www/html/status/ssh.txt";
         fi
 done
 Sshonline
@@ -1803,7 +1799,7 @@ Sshonline
 # Set Permissions And Start
 chmod -R 777 /etc/sshlogin/sshusers.sh
 /bin/bash /etc/sshlogin/sshusers.sh  >/dev/null 2>&1
-chmod -R 777 /var/www/html/stat/ssh.txt
+chmod -R 777 /var/www/html/status/ssh.txt
 
 # Mysql ConnectionHandler
 cat <<'MysqlConnect' > /etc/sshlogin/mysql.class.php
@@ -1881,7 +1877,7 @@ chmod -R 777 /etc/sshlogin/mysql.class.php
 # Update SSH Users to connected on database
 cat <<'SshDB' > /etc/sshlogin/sshauth.sh
 #!/bin/bash
-#Created by joash singh
+#Created by TsholoVPN
 
 if [ -e "/var/log/auth.log" ]; then
         LOG="/var/log/auth.log";
@@ -2137,7 +2133,7 @@ echo "nameserver DNS2" >> /etc/resolv.conf
 ######          WHOLE SCRIPT WILL COLLAPSE         
 ######         IF YOU ADD NOT WORKING SCRIPT       
 ######    TEST IT BEFORE ADD YOUR COMMAND HERE     
-######              by: joash singh
+######              by: TsholoVPN
 Tsholoz
 
 sed -i "s|MyTimeZone|$MyVPS_Time|g" /etc/Tsholostartup
@@ -2578,7 +2574,7 @@ cd
 echo " "
 echo " "
 echo "PREMIUM SCRIPT SUCCESSFULLY INSTALLED!"
-echo "SCRIPT BY DOPE~KID"
+echo "SCRIPT BY TsholoVPN"
 echo "PLEASE WAIT..."
 echo " "
 
@@ -2643,7 +2639,7 @@ echo "  ★ Multi-login Limit customize per user [see menu]. " | tee -a log-inst
 echo "  ★ To display list of commands:  " [ menu ] or [ menu dk ] "" | tee -a log-install.txt | lolcat
 echo "" | tee -a log-install.txt | lolcat
 echo "  ★ Other concern and questions of these auto-scripts?" | tee -a log-install.txt | lolcat
-echo "    Direct Messege : https://t.me/Joash_Singh" | tee -a log-install.txt | lolcat
+echo "    Direct Messege : https://t.me/TsholoVPN" | tee -a log-install.txt | lolcat
 echo ""
 read -p " Press enter.."
 
