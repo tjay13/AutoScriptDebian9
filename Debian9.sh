@@ -490,7 +490,7 @@ sed -i "s|WsPort|$WsPort|g" /etc/stunnel/stunnel.conf
 sed -i "s|MainPort|$MainPort|g" /etc/stunnel/stunnel.conf
 
 # Restarting stunnel service
-systemctl restart $StunnelDir
+systemctl restart stunnel4
 
 # SOCKS PROXY
 mkdir -p /etc/Tsholo-script/py-socksproxy
