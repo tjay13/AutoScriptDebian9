@@ -474,6 +474,7 @@ connect = 127.0.0.1:WsPort
 [sslh]
 accept = Stunnel_Port5
 connect = 127.0.0.1:MainPort
+connect = 127.0.0.1:Nginx_vpn
 
 MyStunnelC
 
