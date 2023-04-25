@@ -143,9 +143,10 @@ apt-get remove --purge ufw firewalld -y
  
 # Installing some important machine essentials
 apt-get install nano sudo wget zip unzip tar gzip iptables bc rc build-essential gcc cron dos2unix whois ngrep screen whois ngrep dnsutils ruby -y
+apt --fix-broken install -y
 
 # Now installing all our wanted services
-apt-get install dropbear openvpn stunnel4 squid python3 apt-transport-https software-properties-common gnupg2 ca-certificates curl nginx fail2ban mariadb-server sslh -y
+apt-get install dropbear openvpn stunnel4 squid python python3 apt-transport-https software-properties-common gnupg2 ca-certificates curl nginx fail2ban mariadb-server sslh -y
 
 # Installing all required packages to install Webmin
 apt-get install perl libnet-ssleay-perl libauthen-pam-perl libio-pty-perl apt-show-versions shared-mime-info -y
